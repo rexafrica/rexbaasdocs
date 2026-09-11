@@ -1,0 +1,1295 @@
+openapi: 3.1.0
+info:
+  title: Rex Banking-as-a-Service API
+  version: "1.0.0"
+  summary: Embed real bank accounts, transfers, and collections into your product.
+  description: |
+    The Rex BaaS API lets you provision virtual bank accounts, move money
+    between them, accept inbound transfers, and collect at merchant terminals —
+    all under your own brand, backed by a real bank ledger.
+
+    This reference covers every endpoint your integration will call. If
+    you're just getting started, read **[Getting Started](/introduction)**
+    and **[Authentication](/authentication)** first — most integration
+    questions are answered there, not in the endpoint list.
+
+    All endpoints are versioned under `/baas/api/v1` and return JSON. See
+    **[Errors](/errors)** for the shared error envelope, and
+    **[Sandbox vs. Live](/guides/sandbox-vs-live)** for how test and
+    production credentials differ.
+  contact:
+    name: Rex BaaS Support
+    email: baas-support@rexmfbank.com
+  license:
+    name: Proprietary — for approved Rex BaaS partners only
+
+servers:
+  - url: https://api.rexmfbank.com/baas/api/v1
+    description: Live
+  - url: https://sandbox-api.rexmfbank.com/baas/api/v1
+    description: Sandbox
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Authentication
+    description: Register a partner account, verify it, log in, and manage credentials.
+  - name: Onboarding
+    description: |
+      The one-time KYB (Know Your Business) flow every partner completes
+      before going live — business details, a compliance representative,
+      supporting documents, and signing the partner agreement.
+  - name: Wallet
+    description: Your business's own settlement balance — the account every virtual/merchant account nets into.
+  - name: Virtual Accounts
+    description: |
+      The core product — dedicated bank account numbers you issue to your
+      own end users, with full transfer and transaction capabilities.
+  - name: Merchant Accounts
+    description: |
+      A distinct, inward-only account type for receiving payments at a
+      terminal or point of sale. Cannot originate a transfer — see
+      **[Virtual Accounts vs. Merchant Accounts](/guides/virtual-vs-merchant-accounts)**.
+  - name: Webhooks
+    description: Configure where and how Rex notifies your system of events in real time.
+  - name: Partner Settings
+    description: Account security, team members, disputes, and document management for your own partner account.
+  - name: Services
+    description: Subscribe your business to optional BaaS services.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: sk_live_... / sk_sandbox_...
+      description: |
+        See **[Authentication](/authentication)** for the full explanation
+        of session tokens vs. API keys and when each is used.
+
+  parameters:
+    PerPage:
+      name: per_page
+      in: query
+      description: Number of results per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    SuccessEnvelope:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          description: Endpoint-specific payload — see each operation.
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+        message:
+          type: string
+          description: Human-readable, safe to show a user.
+        error_code:
+          type: string
+          description: |
+            Stable, machine-readable code — switch on this, not on
+            `message` (message text can change; `error_code` won't).
+          example: ACCOUNT_NOT_FOUND
+        errors:
+          type: object
+          description: Present only on `422` validation failures — field name → array of messages.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    VirtualAccount:
+      type: object
+      properties:
+        account_number:
+          type: string
+          example: "9971234567"
+        account_name:
+          type: string
+          example: "REX/Jane Doe"
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        balance:
+          type: number
+          format: float
+          example: 15000.00
+        created_at:
+          type: string
+          format: date-time
+
+    MerchantAccount:
+      type: object
+      properties:
+        account_number:
+          type: string
+          example: "9979876543"
+        account_name:
+          type: string
+          example: "Alex Store — Till 1"
+        terminal_id:
+          type: integer
+          nullable: true
+        terminal_reference:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        balance:
+          type: number
+          format: float
+        created_at:
+          type: string
+          format: date-time
+
+    Transaction:
+      type: object
+      properties:
+        reference:
+          type: string
+          example: "TXN-20260101-0001"
+        account_number:
+          type: string
+        amount:
+          type: number
+          format: float
+        transactionType:
+          type: string
+          enum: [CREDIT, DEBIT]
+        transactionStatus:
+          type: string
+          example: SUCCESSFUL
+        narration:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+paths:
+  /client/onboarding/register:
+    post:
+      tags: [Authentication]
+      summary: Register a partner account
+      description: |
+        Creates your business's Rex BaaS partner account and sends a 6-digit
+        OTP to the email you provide. Verify it with **Verify Registration OTP**
+        before logging in — an unverified account cannot log in.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [business_name, email, password, password_confirmation]
+              properties:
+                business_name: { type: string, maxLength: 191, example: "Acme Payments Ltd" }
+                email: { type: string, format: email, example: "ops@acmepayments.com" }
+                phone: { type: string, nullable: true, example: "+2348000000000" }
+                password: { type: string, minLength: 8, example: "correct-horse-battery-staple" }
+                password_confirmation: { type: string, example: "correct-horse-battery-staple" }
+      responses:
+        "200":
+          description: OTP sent
+          content:
+            application/json:
+              example:
+                status: success
+                message: "OTP sent."
+                data: { company_id: 4821, email: "ops@acmepayments.com" }
+        "422":
+          description: Validation failed, or the email is already registered
+          content:
+            application/json:
+              example:
+                status: error
+                message: "Validation failed."
+                error_code: VALIDATION_FAILED
+                errors: { email: ["The email has already been taken."] }
+
+  /client/onboarding/verify-otp:
+    post:
+      tags: [Authentication]
+      summary: Verify registration OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp]
+              properties:
+                email: { type: string, format: email }
+                otp: { type: string, pattern: "^[0-9]{6}$", example: "482913" }
+      responses:
+        "200":
+          description: Email verified — you can now log in
+          content:
+            application/json:
+              example: { status: success, message: "Email verified.", data: { verified: true } }
+        "404":
+          description: No account exists for this email
+        "422":
+          description: |
+            Invalid or expired OTP. The code expires after
+            `otp_expiry_minutes` (10 minutes by default) and locks after
+            `otp_max_attempts` wrong guesses (5 by default) — request a new
+            one with **Resend Registration OTP** in either case.
+
+  /client/onboarding/resendOtp:
+    post:
+      tags: [Authentication]
+      summary: Resend registration OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties: { email: { type: string, format: email } }
+      responses:
+        "200": { description: OTP resent }
+        "404": { description: No account exists for this email }
+
+  /client/onboarding/login:
+    post:
+      tags: [Authentication]
+      summary: Log in
+      description: |
+        Exchanges your partner email/password for a bearer token. See
+        **[Authentication](/authentication)** for the full picture — in
+        particular, how long this token lasts and what to do when it expires.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Login successful."
+                data:
+                  token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                  token_type: Bearer
+                  expires_in: 7200
+                  environment: sandbox
+        "401":
+          description: Invalid credentials
+        "403":
+          description: Account registered but email not yet verified
+          content:
+            application/json:
+              example: { status: error, message: "Account is not verified.", error_code: ACCOUNT_NOT_VERIFIED }
+
+  /client/onboarding/forgot-password:
+    post:
+      tags: [Authentication]
+      summary: Request a password reset code
+      description: Always returns 200 whether or not the email exists — doesn't reveal which emails are registered.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+      responses:
+        "200": { description: "If an account exists for this email, a reset code has been sent." }
+
+  /client/onboarding/forgot-password/resend:
+    post:
+      tags: [Authentication]
+      summary: Resend the password reset code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+      responses:
+        "200": { description: Resent (same non-revealing behavior as forgot-password) }
+
+  /client/onboarding/reset-password:
+    post:
+      tags: [Authentication]
+      summary: Reset password with the emailed code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, otp, password, password_confirmation]
+              properties:
+                email: { type: string, format: email }
+                otp: { type: string, pattern: "^[0-9]{6}$" }
+                password: { type: string, minLength: 8 }
+                password_confirmation: { type: string }
+      responses:
+        "200": { description: Password reset — log in with the new password }
+        "422": { description: Invalid or expired code }
+
+  /client/onboarding/countries:
+    get:
+      tags: [Authentication]
+      summary: List supported countries
+      description: Static reference list used to populate the country field during onboarding. No auth required.
+      security: []
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: Success, data: { countries: ["Nigeria", "Ghana", "Kenya"] } }
+
+  /client/onboarding/apikeys:
+    post:
+      tags: [Authentication]
+      summary: Issue an API key
+      description: |
+        > 🚧 **Not yet used for authentication.** See the callout in
+        > **[Authentication](/authentication)** — every endpoint currently
+        > authenticates with the bearer token from **Login**, not this key.
+        > This endpoint and its key are reserved for a forthcoming
+        > API-key auth mode; don't build against it as a credential yet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [environment]
+              properties: { environment: { type: string, enum: [sandbox, live] } }
+      responses:
+        "200":
+          description: |
+            The plaintext secret is returned **once**, here, and never
+            again — store it immediately.
+          content:
+            application/json:
+              example:
+                status: success
+                message: "API key issued. Store the secret key now — it will not be shown again."
+                data: { environment: sandbox, public_key: "pk_sandbox_...", secret_key: "sk_sandbox_...", created_at: "2026-01-01T00:00:00Z" }
+    get:
+      tags: [Authentication]
+      summary: List your API keys
+      description: Secrets are masked on every response except the moment of issuance above.
+      parameters:
+        - name: environment
+          in: query
+          schema: { type: string, enum: [sandbox, live] }
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: Success, data: { keys: [{ environment: sandbox, public_key: "pk_sandbox_...", secret_key: "sk_***masked***" }] } }
+
+  /client/onboarding/business-info:
+    post:
+      tags: [Onboarding]
+      summary: Save business information
+      description: |
+        Part of the one-time KYB flow. Fields lock once your application is
+        **submitted** — see **Submit Application** — after which this
+        returns `409 PROFILE_LOCKED`.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rc_number: { type: string, nullable: true, maxLength: 100 }
+                legal_business_name: { type: string, nullable: true, maxLength: 191 }
+                industry: { type: string, nullable: true }
+                category: { type: string, nullable: true }
+                business_description: { type: string, nullable: true, maxLength: 2000 }
+                brand_colour: { type: string, nullable: true }
+                logo_url: { type: string, nullable: true }
+                business_type:
+                  type: string
+                  nullable: true
+                  enum: [not_registered, business_name, limited_liability, cooperative]
+                  description: Determines which document types are required — see **[Going Live Checklist](/guides/going-live-checklist)**.
+      responses:
+        "200": { description: Saved }
+        "409":
+          description: Already submitted — fields are locked
+          content:
+            application/json:
+              example: { status: error, message: "Business information can no longer be edited.", error_code: PROFILE_LOCKED }
+    get:
+      tags: [Onboarding]
+      summary: Get your onboarding profile
+      description: |
+        Returns everything at once — profile fields, your compliance
+        representative, uploaded documents, and a `document_checklist`
+        computed from your `business_type` (which document types are still
+        outstanding). There's deliberately no separate endpoint for any of
+        these pieces.
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  company_id: 4821
+                  legal_business_name: "Acme Payments Ltd"
+                  business_type: limited_liability
+                  onboarding_status: in_progress
+                  representative: { first_name: "Jane", last_name: "Doe", email: "jane@acmepayments.com" }
+                  documents: [{ document_type: cac_certificate, status: pending_review }]
+                  document_checklist: { cac_certificate: uploaded, memart: missing, valid_id: uploaded }
+
+  /client/onboarding/representative:
+    post:
+      tags: [Onboarding]
+      summary: Add your compliance representative
+      description: |
+        The individual Rex holds accountable for this account — typically a
+        director or compliance officer. Runs an identity/KYC check
+        synchronously; the response tells you immediately whether it passed.
+        **BVN is immutable once set.**
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [first_name, last_name, email, phone, dob, gender, designation, bvn, id_type]
+              properties:
+                first_name: { type: string, maxLength: 100 }
+                last_name: { type: string, maxLength: 100 }
+                email: { type: string, format: email }
+                phone: { type: string, maxLength: 20 }
+                dob: { type: string, format: date, description: Must be in the past }
+                gender: { type: string }
+                designation: { type: string, example: "Director" }
+                bvn: { type: string, pattern: "^[0-9]{11}$" }
+                id_type: { type: string, example: national_id }
+                id_file: { type: string, format: binary, description: "Provide this OR id_file_url, not both." }
+                id_file_url: { type: string, description: "Alternative to id_file — a URL to an already-hosted file." }
+                address: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Representative saved."
+                data: { representative: { first_name: "Jane", last_name: "Doe" }, kyc: { ok: true, message: "Verified" } }
+        "409":
+          description: "`BVN_IMMUTABLE` if BVN was already set; `PROFILE_LOCKED` if already submitted"
+
+  /client/onboarding/compliance:
+    post:
+      tags: [Onboarding]
+      summary: Upload compliance documents
+      description: |
+        Set `business_type` (via **Save Business Information**) first —
+        which document types are valid depends on it. See
+        **[Going Live Checklist](/guides/going-live-checklist)** for the
+        full type list per business type.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [documents]
+              properties:
+                documents:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type: { type: string, example: cac_certificate }
+                      file: { type: string, format: binary, description: "jpg, jpeg, png, or pdf, max 10MB" }
+      responses:
+        "200": { description: Saved }
+        "409": { description: "`BUSINESS_TYPE_NOT_SET` or `PROFILE_LOCKED`" }
+        "422": { description: "`INVALID_DOCUMENT_TYPE_FOR_BUSINESS_TYPE` — the type isn't in your business type's checklist" }
+
+  /client/onboarding/agreement:
+    post:
+      tags: [Onboarding]
+      summary: Sign the partner agreement
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: Success, data: { agreed_to_terms_at: "2026-01-01T00:00:00Z" } }
+        "409": { description: Already signed }
+
+  /client/onboarding/submit:
+    post:
+      tags: [Onboarding]
+      summary: Submit your application for review
+      description: |
+        The final onboarding step. Requires, in order: a signed agreement, a
+        representative, a `business_type`, an `rc_number` (if your business
+        type requires one), and every required document uploaded. Locks
+        business-info/representative/compliance from further edits once
+        submitted.
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: Success, data: { onboarding_status: pending_review } }
+        "422":
+          description: |
+            One of `AGREEMENT_NOT_SIGNED`, `REPRESENTATIVE_REQUIRED`,
+            `BUSINESS_TYPE_REQUIRED`, `RC_NUMBER_REQUIRED`, or
+            `DOCUMENTS_REQUIRED` — the message names exactly what's missing.
+        "409": { description: Already submitted }
+
+  /client/onboarding/environment:
+    put:
+      tags: [Onboarding]
+      summary: Switch environment
+      description: |
+        Switches which environment your dashboard session and service calls
+        target. See **[Sandbox vs. Live](/guides/sandbox-vs-live)**. You
+        cannot switch to `live` until your application is approved
+        (`onboarding_status: active`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [environment], properties: { environment: { type: string, enum: [sandbox, live] } } }
+      responses:
+        "200": { content: { application/json: { example: { status: success, message: Success, data: { environment: live } } } } }
+        "403": { description: "`NOT_ACTIVE` — not yet approved for live" }
+
+  /client/onboarding/dashboard-metrics:
+    get:
+      tags: [Onboarding]
+      summary: Dashboard summary metrics
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Dashboard Metrics fetched successfully!"
+                data:
+                  totalVolume: 4500000.00
+                  totalVolumeChange: 12.4
+                  successRate: 99.2
+                  successRateChange: 0.3
+                  activeWallets: 812
+                  activeWalletsChange: 45
+                  pendingItems: 2
+                  pendingItemsChange: -1
+
+  /client/onboarding/balance:
+    get:
+      tags: [Wallet]
+      summary: Get your business balance
+      description: |
+        Your own settlement account — the balance every virtual/merchant
+        account transaction ultimately nets into or out of. Not a
+        per-customer balance; see **Get Virtual Account Wallet Balance** for that.
+      parameters:
+        - name: environment
+          in: query
+          schema: { type: string, enum: [sandbox, live] }
+          description: Defaults to your session's current environment.
+      responses:
+        "200":
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Business account balance retrieved successfully!"
+                data: { accountType: MASTER, accountNumber: "9970000001", accountName: "Acme Payments Ltd — Business", bankName: "Rex MFBank", balance: 2500000.00, accountEnv: LIVE }
+        "409": { description: "`MASTER_NOT_PROVISIONED` — contact support, this is set up during approval" }
+
+  /client/onboarding/fund-account:
+    post:
+      tags: [Wallet]
+      summary: Fund your sandbox balance
+      description: Sandbox only — tops your sandbox business balance up to the test threshold so you can exercise transfers without touching real money.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [environment], properties: { environment: { type: string, enum: [sandbox] } } }
+      responses:
+        "200": { description: Funded }
+        "409": { description: "`MASTER_NOT_PROVISIONED`" }
+
+  /services/virtual-account/create:
+    post:
+      tags: [Virtual Accounts]
+      summary: Create a virtual account
+      description: Issues a dedicated bank account number for one of your end users.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [first_name, last_name]
+              properties:
+                first_name: { type: string, maxLength: 100 }
+                last_name: { type: string, maxLength: 100 }
+                email: { type: string, format: email, nullable: true }
+                phone: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: "Virtual account created.", data: { account_number: "9971234567", account_name: "REX/Jane Doe", status: active, balance: 0 } }
+        "409": { description: "`FBO_NOT_PROVISIONED` — your partner account isn't fully approved yet" }
+
+  /services/virtual-account:
+    get:
+      tags: [Virtual Accounts]
+      summary: List virtual accounts
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: Success, data: { data: [{ account_number: "9971234567", status: active }], current_page: 1, per_page: 20, total: 1 } }
+
+  /services/virtual-account/{accountNo}/info:
+    get:
+      tags: [Virtual Accounts]
+      summary: Get a virtual account
+      parameters:
+        - name: accountNo
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { content: { application/json: { schema: { $ref: "#/components/schemas/SuccessEnvelope" } } } }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services/virtual-account/{accountNo}/update-status:
+    post:
+      tags: [Virtual Accounts]
+      summary: Activate or deactivate a virtual account
+      parameters:
+        - name: accountNo
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [status], properties: { status: { type: string, enum: [active, inactive] } } }
+      responses:
+        "200": { description: Updated }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services/virtual-account/{accountNo}/wallet-balance:
+    get:
+      tags: [Virtual Accounts]
+      summary: Get a virtual account's balance
+      parameters:
+        - name: accountNo
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services/virtual-account/{accountNo}/name-enquiry:
+    get:
+      tags: [Virtual Accounts]
+      summary: Resolve an account name
+      description: |
+        Resolves any Rex-issued account (virtual account or your own
+        business Master account). Resolving an account at another bank via
+        `bankCode` is not yet supported.
+      parameters:
+        - name: accountNo
+          in: path
+          required: true
+          schema: { type: string }
+        - name: bankCode
+          in: query
+          schema: { type: string }
+          description: Not yet supported — returns `422 EXTERNAL_LOOKUP_NOT_SUPPORTED` if set.
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: Success, data: { account_number: "9971234567", account_name: "REX/Jane Doe", bank_name: "Rex MFBank" } }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services/virtual-account/internal-transfer:
+    post:
+      tags: [Virtual Accounts]
+      summary: Transfer between Rex-issued accounts
+      description: |
+        Moves money between any two Rex-issued accounts — including across
+        partners. If the beneficiary belongs to a different partner, that
+        partner's webhook fires an `internal-transfer` event too.
+        `reference` must be unique per transaction — reusing one returns
+        `409 DUPLICATE_REFERENCE`, safe to retry with the same reference on
+        a network timeout.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceAccountNo, beneficiaryAccountNo, amount, narration, reference]
+              properties:
+                sourceAccountNo: { type: string }
+                beneficiaryAccountNo: { type: string }
+                amount: { type: number, format: float, minimum: 0.01 }
+                narration: { type: string, maxLength: 100 }
+                reference: { type: string, maxLength: 191, description: "Your own idempotency key for this transfer." }
+                geolocation: { type: string, nullable: true }
+                charge: { type: number, nullable: true }
+                stampDuty: { type: number, nullable: true }
+                channel: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: "Internal transfer SUCCESSFUL.", data: { reference: "REF-001", transactionStatus: SUCCESSFUL } }
+        "400": { description: "`INSUFFICIENT_BALANCE` or `REGULAR_ACCOUNT_NOT_SUPPORTED_IN_SANDBOX`" }
+        "404": { description: "`SOURCE_ACCOUNT_NOT_FOUND` or `BENEFICIARY_ACCOUNT_NOT_FOUND`" }
+        "409": { description: "`DUPLICATE_REFERENCE`, `FBO_NOT_PROVISIONED`, or `DESTINATION_FBO_NOT_PROVISIONED`" }
+        "422": { description: "`INVALID_TRANSFER` — source and beneficiary are the same account" }
+
+  /services/virtual-account/interbank-transfer:
+    post:
+      tags: [Virtual Accounts]
+      summary: Transfer to another bank
+      description: Sends funds out to an account at another financial institution over the NIP switch.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceAccountNo, beneficiaryAccountNo, beneficiaryBankCode, beneficiaryName, amount, narration, reference]
+              properties:
+                sourceAccountNo: { type: string }
+                beneficiaryAccountNo: { type: string }
+                beneficiaryBankCode: { type: string, maxLength: 10 }
+                beneficiaryName: { type: string, maxLength: 100 }
+                amount: { type: number, format: float, minimum: 0.01 }
+                narration: { type: string, maxLength: 100 }
+                reference: { type: string, maxLength: 191 }
+                geolocation: { type: string, nullable: true }
+                charge: { type: number, nullable: true }
+                stampDuty: { type: number, nullable: true }
+                channel: { type: string, nullable: true }
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: "Interbank transfer SUCCESSFUL.", data: { reference: "REF-002", transactionStatus: SUCCESSFUL } }
+        "400": { description: "`INSUFFICIENT_BALANCE`, or `TRANSFER_FAILED` with the provider's own reason" }
+        "404": { description: "`SOURCE_ACCOUNT_NOT_FOUND`" }
+        "409": { description: "`DUPLICATE_REFERENCE` or `FBO_NOT_PROVISIONED`" }
+
+  /services/virtual-account/transactions:
+    get:
+      tags: [Virtual Accounts]
+      summary: List transactions
+      parameters:
+        - name: account_number
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200": { description: Paginated transaction list }
+
+  /services/virtual-account/transactions/status:
+    get:
+      tags: [Virtual Accounts]
+      summary: Get transaction status by reference
+      parameters:
+        - name: reference
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`TRANSACTION_NOT_FOUND`" }
+
+  /services/virtual-account/post-transaction:
+    post:
+      tags: [Virtual Accounts]
+      summary: Post a manual credit or debit
+      description: Directly credits or debits a virtual account — e.g. to record an off-platform adjustment. Fires a `post-transaction` webhook event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accountNumber, amount, transactionType, reference]
+              properties:
+                accountNumber: { type: string }
+                amount: { type: number, format: float, minimum: 0.01 }
+                transactionType: { type: string, enum: [CREDIT, DEBIT] }
+                reference: { type: string, maxLength: 191 }
+                narration: { type: string, nullable: true, maxLength: 255 }
+      responses:
+        "200": { description: Posted }
+        "400": { description: "`INSUFFICIENT_BALANCE` or `INSUFFICIENT_MASTER_BALANCE`" }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+        "409": { description: "`DUPLICATE_REFERENCE`, `FBO_NOT_PROVISIONED`, or `MASTER_NOT_PROVISIONED`" }
+
+  /services/virtual-account/simulate-inward-credit:
+    post:
+      tags: [Virtual Accounts]
+      summary: Simulate an inward credit
+      description: |
+        > 🚧 **Testing tool for Rex's own staging environment — not
+        > reachable in production regardless of your sandbox/live
+        > environment choice.** It's gated on Rex's server environment
+        > (`local`/`staging`), not on your partner `environment` field, so
+        > it will return `403 NOT_AVAILABLE_IN_ENVIRONMENT` for every
+        > partner in production. To fund/test a sandbox account instead,
+        > use **Post a Manual Credit** or **Transfer Between Accounts**
+        > from your funded sandbox Master balance (see **Fund Sandbox Balance**).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [beneficiaryAccountNo, amount]
+              properties:
+                beneficiaryAccountNo: { type: string }
+                amount: { type: number, format: float, minimum: 0.01 }
+                narration: { type: string, nullable: true }
+                reference: { type: string, nullable: true }
+                originatorName: { type: string, nullable: true }
+                originatorAccountNo: { type: string, nullable: true }
+                originatorBankName: { type: string, nullable: true }
+      responses:
+        "200": { description: Simulated credit posted }
+        "403": { description: "`NOT_AVAILABLE_IN_ENVIRONMENT`" }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services/merchant-account/create:
+    post:
+      tags: [Merchant Accounts]
+      summary: Create a merchant account
+      description: |
+        Requires your business to be subscribed to Merchant Terminal
+        Accounts first (see **Subscribe to a Service**). See
+        **[Virtual Accounts vs. Merchant Accounts](/guides/virtual-vs-merchant-accounts)**
+        for when to use this instead of a Virtual Account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_name]
+              properties:
+                account_name: { type: string, maxLength: 191 }
+                terminal_id: { type: integer, nullable: true }
+                terminal_reference: { type: string, nullable: true }
+      responses:
+        "200": { content: { application/json: { example: { status: success, message: "Merchant account created.", data: { account_number: "9979876543", account_name: "Alex Store — Till 1", status: active } } } } }
+        "403": { description: "`NOT_SUBSCRIBED`" }
+        "404": { description: "`TERMINAL_NOT_FOUND`" }
+        "409": { description: "`MASTER_NOT_PROVISIONED`" }
+
+  /services/merchant-account:
+    get:
+      tags: [Merchant Accounts]
+      summary: List merchant accounts
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200": { description: Paginated list }
+
+  /services/merchant-account/{accountNo}/info:
+    get:
+      tags: [Merchant Accounts]
+      summary: Get a merchant account
+      parameters:
+        - name: accountNo
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services/merchant-account/{accountNo}/update-status:
+    post:
+      tags: [Merchant Accounts]
+      summary: Activate or deactivate a merchant account
+      parameters:
+        - name: accountNo
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [status], properties: { status: { type: string, enum: [active, inactive] } } }
+      responses:
+        "200": { description: Updated }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services/merchant-account/{accountNo}/wallet-balance:
+    get:
+      tags: [Merchant Accounts]
+      summary: Get a merchant account's balance
+      parameters:
+        - name: accountNo
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services/merchant-account/transactions:
+    get:
+      tags: [Merchant Accounts]
+      summary: List merchant account transactions
+      parameters:
+        - name: account_number
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200": { description: Paginated list }
+
+  /services/merchant-account/transactions/status:
+    get:
+      tags: [Merchant Accounts]
+      summary: Get transaction status by reference
+      parameters:
+        - name: reference
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+        "404": { description: "`TRANSACTION_NOT_FOUND`" }
+
+  /services/partner/webhook:
+    post:
+      tags: [Webhooks]
+      summary: Configure your webhook
+      description: |
+        Sets (or rotates) the URL and signing secret Rex sends event
+        notifications to. See **[Webhooks Overview](/webhooks/overview)**
+        and **[Verifying Signatures](/webhooks/signature-verification)**
+        before going live with this.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri, maxLength: 191 }
+                regenerate_secret: { type: boolean, default: false, description: Rotates the signing secret — do this if it may have leaked. }
+      responses:
+        "200":
+          description: |
+            `secret` is the plaintext signing secret and is returned **only
+            this once** (on first creation, or when `regenerate_secret` is
+            true) — every later `GET` returns it masked.
+          content:
+            application/json:
+              example: { status: success, message: "Webhook configuration saved.", data: { url: "https://acme.example/webhooks/rex", webhook_alert: true, transaction_alert: true, secret: "whsec_...", secret_notice: "Store this secret now — it will not be shown again." } }
+    get:
+      tags: [Webhooks]
+      summary: Get your webhook configuration
+      responses:
+        "200":
+          content:
+            application/json:
+              example: { status: success, message: Success, data: { url: "https://acme.example/webhooks/rex", secret: "whsec_***masked***", webhook_alert: true, transaction_alert: true } }
+        "404": { description: "`WEBHOOK_NOT_CONFIGURED`" }
+
+  /services/partner/settings/transactions-alerts:
+    post:
+      tags: [Webhooks]
+      summary: Toggle transaction event notifications
+      description: |
+        Controls whether `post-transaction`, `internal-transfer`,
+        `interbank-transfer`, and `inbound-credit` events fire to your
+        webhook. See **[Webhook Events](/webhooks/events)**.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } }
+      responses:
+        "200": { description: Updated }
+        "404": { description: "`WEBHOOK_NOT_CONFIGURED` — configure a webhook first" }
+
+  /services/partner/settings/webhook-alerts:
+    post:
+      tags: [Webhooks]
+      summary: Toggle webhook-health alerts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } }
+      responses:
+        "200": { description: Updated }
+        "404": { description: "`WEBHOOK_NOT_CONFIGURED`" }
+
+  /services/partner/settings/change-password:
+    post:
+      tags: [Partner Settings]
+      summary: Change your password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password, new_password_confirmation]
+              properties:
+                current_password: { type: string }
+                new_password: { type: string, minLength: 6 }
+                new_password_confirmation: { type: string }
+      responses:
+        "200": { description: Changed }
+        "400": { description: "`INCORRECT_PASSWORD`" }
+
+  /services/partner/settings/toggle-two-fa:
+    post:
+      tags: [Partner Settings]
+      summary: Enable or disable two-factor authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [enabled], properties: { enabled: { type: boolean } } }
+      responses:
+        "200": { description: Updated }
+
+  /services/partner/settings/api-config:
+    post:
+      tags: [Partner Settings]
+      summary: Update API configuration
+      description: |
+        `rate_limit` is stored but **the platform-wide 120 req/min limit
+        described in [Rate Limits](/rate-limits) is what's actually
+        enforced today** — treat any value you set here as forward-looking
+        configuration, not a live override, until this is wired up.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ip_whitelist: { type: array, items: { type: string }, nullable: true }
+                webhook_retry: { type: integer, minimum: 0, maximum: 10, nullable: true, description: "Number of retry attempts on webhook delivery failure. 0 = single attempt, no retry." }
+                rate_limit: { type: integer, minimum: 1, nullable: true }
+      responses:
+        "200": { description: Updated }
+
+  /services/partner/settings/team:
+    get:
+      tags: [Partner Settings]
+      summary: List team members
+      responses:
+        "200": { description: OK }
+    post:
+      tags: [Partner Settings]
+      summary: Add a team member
+      description: Requires a compliance representative to already be on file (see **Add Compliance Representative**).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [first_name, last_name, email, phone]
+              properties:
+                first_name: { type: string, maxLength: 100 }
+                last_name: { type: string, maxLength: 100 }
+                email: { type: string, format: email }
+                phone: { type: string, maxLength: 20 }
+                dob: { type: string, format: date, nullable: true }
+                gender: { type: string, nullable: true }
+                designation: { type: string, nullable: true }
+                bvn: { type: string, nullable: true }
+                id_type: { type: string, nullable: true }
+                id_file_url: { type: string, nullable: true }
+                address: { type: string, nullable: true }
+      responses:
+        "200": { description: Added }
+        "409": { description: "`REPRESENTATIVE_REQUIRED` or `DUPLICATE_EMAIL`" }
+
+  /services/partner/settings/team/{memberId}:
+    put:
+      tags: [Partner Settings]
+      summary: Update a team member
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name: { type: string }
+                last_name: { type: string }
+                email: { type: string, format: email }
+                phone: { type: string, nullable: true }
+                dob: { type: string, format: date, nullable: true }
+                gender: { type: string, nullable: true }
+                designation: { type: string, nullable: true }
+                id_type: { type: string, nullable: true }
+                id_file_url: { type: string, nullable: true }
+                address: { type: string, nullable: true }
+      responses:
+        "200": { description: Updated }
+        "404": { description: "`MEMBER_NOT_FOUND`" }
+        "409": { description: "`DUPLICATE_EMAIL`" }
+    delete:
+      tags: [Partner Settings]
+      summary: Remove a team member
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Removed }
+        "404": { description: "`MEMBER_NOT_FOUND`" }
+
+  /services/partner/dispute/save:
+    post:
+      tags: [Partner Settings]
+      summary: Open a dispute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transaction_reference, message]
+              properties:
+                transaction_reference: { type: string, maxLength: 191 }
+                message: { type: string, maxLength: 2000 }
+      responses:
+        "200": { description: Submitted }
+        "409": { description: "`DISPUTE_ALREADY_EXISTS`" }
+
+  /services/partner/dispute/fetch:
+    get:
+      tags: [Partner Settings]
+      summary: List disputes
+      parameters:
+        - name: transaction_reference
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+
+  /services/partner/document/upload:
+    post:
+      tags: [Partner Settings]
+      summary: Upload a document or brand asset
+      description: Compliance documents are gated by your `business_type`'s checklist (same as **Upload Compliance Documents**); brand assets like your logo are not.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [document_type, file]
+              properties:
+                document_type: { type: string, maxLength: 100 }
+                file: { type: string, format: binary, description: "jpg, jpeg, png, or pdf, max 10MB" }
+      responses:
+        "200": { description: Uploaded }
+        "409": { description: "`BUSINESS_TYPE_NOT_SET`" }
+        "422": { description: "`INVALID_DOCUMENT_TYPE_FOR_BUSINESS_TYPE`" }
+
+  /services/subscribe/create:
+    post:
+      tags: [Services]
+      summary: Subscribe to a service
+      description: Required before creating a Merchant Account — see **Create a Merchant Account**.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [serviceId], properties: { serviceId: { type: integer, minimum: 1 } } }
+      responses:
+        "200": { description: Subscribed }
+        "409": { description: "`ALREADY_SUBSCRIBED`" }

@@ -1,0 +1,69 @@
+---
+title: Introduction
+description: Get started with the Rex Banking-as-a-Service API
+---
+
+The Rex BaaS API lets you embed real bank accounts, transfers, and
+collections into your product — under your own brand, backed by a
+licensed bank ledger. This is the same platform powering Rex's own mobile
+banking app, exposed to approved partners.
+
+## What you can build
+
+- **Wallets for your users** — issue each of them a dedicated Rex account
+  number ([Virtual Accounts](/api-reference/virtual-accounts/create-a-virtual-account)),
+  fund it, move money between accounts, and send to other banks.
+- **Collections at a terminal or point of sale** — a distinct,
+  inward-only account type purpose-built for this
+  ([Merchant Accounts](/api-reference/merchant-accounts/create-a-merchant-account)) —
+  see [Virtual vs. Merchant Accounts](/guides/virtual-vs-merchant-accounts)
+  for which one fits your use case.
+- **Real-time notifications** — subscribe a webhook to be notified the
+  moment money moves, signed so you can verify it really came from Rex
+  ([Webhooks](/webhooks/overview)).
+
+## Get your first account
+
+<Steps>
+  <Step title="Register">
+    [Register](/api-reference/authentication/register-a-partner-account) with your business
+    name, email, and a password. You'll get a 6-digit OTP by email.
+  </Step>
+  <Step title="Verify your email">
+    [Verify the OTP](/api-reference/authentication/verify-registration-otp) to activate your account.
+  </Step>
+  <Step title="Log in">
+    [Log in](/api-reference/authentication/log-in) to get a bearer token — see [Authentication](/authentication) for what it can and can't do.
+  </Step>
+  <Step title="Complete onboarding">
+    Save your [business information](/api-reference/onboarding/save-business-information),
+    add a [compliance representative](/api-reference/onboarding/add-your-compliance-representative),
+    upload the documents your business type requires (see the
+    [Going Live Checklist](/guides/going-live-checklist)), sign the
+    [agreement](/api-reference/onboarding/sign-the-partner-agreement), and
+    [submit](/api-reference/onboarding/submit-your-application-for-review).
+  </Step>
+  <Step title="Build in sandbox">
+    While your application is under review, everything works in `sandbox` —
+    [fund your test balance](/api-reference/wallet/fund-your-sandbox-balance)
+    and start creating accounts and moving money. See [Sandbox vs. Live](/guides/sandbox-vs-live).
+  </Step>
+  <Step title="Go live">
+    Once approved, [switch your environment to live](/api-reference/onboarding/switch-environment)
+    and repeat the same integration against real money.
+  </Step>
+</Steps>
+
+## Base URLs
+
+| Environment | Base URL |
+|---|---|
+| Live | `https://api.rexmfbank.com/baas/api/v1` |
+| Sandbox | `https://sandbox-api.rexmfbank.com/baas/api/v1` |
+
+## Where to go next
+
+- [Authentication](/authentication) — how tokens work, and one thing worth
+  reading before you build against this.
+- [Errors](/errors) — the one response shape every endpoint shares.
+- [Webhooks Overview](/webhooks/overview) — get notified instead of polling.

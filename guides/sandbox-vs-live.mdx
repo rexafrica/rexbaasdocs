@@ -1,0 +1,52 @@
+---
+title: Sandbox vs. Live
+description: How test and production environments differ on the Rex BaaS API
+---
+
+Your account has a single `environment` field — `sandbox` or `live` — set
+with [Switch Environment](/api-reference/onboarding/switch-environment) and
+readable from your [Login](/api-reference/authentication/log-in) response.
+Every service call (creating accounts, transfers, transactions) operates
+against whichever environment your account currently holds — there's no
+separate sandbox/live API base URL to switch between for these calls, and
+no separate credential per environment (see the token-lifetime caveat in
+[Authentication](/authentication)).
+
+## What's different in sandbox
+
+- **Funding**: use [Fund Sandbox Balance](/api-reference/wallet/fund-your-sandbox-balance)
+  to top your test business balance up to a working threshold — instantly,
+  no real money involved. There's no live equivalent; a live balance is
+  funded by real inbound transfers.
+- **Interbank transfers to arbitrary accounts**: sandbox
+  [Transfer Between Accounts](/api-reference/virtual-accounts/transfer-between-rex-issued-accounts)
+  only supports Rex's own designated sandbox test accounts as a regular
+  (non-Rex) beneficiary — sending to an arbitrary external account returns
+  `400 REGULAR_ACCOUNT_NOT_SUPPORTED_IN_SANDBOX`. Transfers between two
+  Rex-issued accounts work normally.
+- **Rate limits, error shapes, and every other endpoint behave identically**
+  in both environments — sandbox is not a stripped-down mock, it's the same
+  code path against test data.
+
+## Going live
+
+You can't switch to `live` until your onboarding application is approved
+(`onboarding_status: active`) — see the
+[Going Live Checklist](/guides/going-live-checklist). Attempting to switch
+earlier returns `403 NOT_ACTIVE`.
+
+Once live, treat it exactly like production banking infrastructure,
+because it is one: real transfers move real money and can't be undone the
+way a sandbox mistake can.
+
+## A note on `simulate-inward-credit`
+
+You may notice
+[Simulate Inward Credit](/api-reference/virtual-accounts/simulate-an-inward-credit)
+in this reference and expect it to be the sandbox testing tool for inbound
+transfers. It isn't reachable in production at all, for any partner,
+regardless of your sandbox/live environment setting — it's gated to Rex's
+own internal staging environment. To simulate money arriving in your
+sandbox account, use
+[Post a Manual Credit](/api-reference/virtual-accounts/post-a-manual-credit-or-debit)
+or transfer from your funded sandbox Master balance instead.

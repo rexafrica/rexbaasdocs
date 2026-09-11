@@ -1,0 +1,88 @@
+---
+title: Webhooks Overview
+description: Get notified in real time instead of polling for transaction status
+---
+
+Instead of polling [Get Transaction Status](/api-reference/virtual-accounts/get-transaction-status-by-reference),
+configure a webhook once and Rex will `POST` an event to your URL the
+moment something happens — money received, a transfer completed, a manual
+posting made.
+
+## Set up your webhook
+
+```bash
+curl -X POST https://api.rexmfbank.com/baas/api/v1/services/partner/webhook \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://acme.example/webhooks/rex"}'
+```
+
+```json
+{
+  "status": "success",
+  "message": "Webhook configuration saved.",
+  "data": {
+    "url": "https://acme.example/webhooks/rex",
+    "webhook_alert": true,
+    "transaction_alert": true,
+    "secret": "whsec_9f8a7b6c5d4e3f2a1b0c...",
+    "secret_notice": "Store this secret now — it will not be shown again."
+  }
+}
+```
+
+<Warning>
+  `secret` is returned **once** — at creation, and again only if you pass
+  `regenerate_secret: true`. Every later
+  [Get Webhook Configuration](/api-reference/webhooks/get-your-webhook-configuration)
+  call returns it masked. Store it in your own secrets manager immediately.
+</Warning>
+
+Toggle whether transaction events fire at all with
+[Toggle Transaction Alerts](/api-reference/webhooks/toggle-transaction-event-notifications) —
+it's on by default once a webhook is configured.
+
+## What gets delivered
+
+Every event is a `POST` to your URL with this envelope:
+
+```json
+{
+  "event": "post-transaction",
+  "timestamp": "2026-01-01T12:00:00+00:00",
+  "reference": "TXN-001",
+  "account_number": "9971234567",
+  "direction": "credit",
+  "amount": 5000.00,
+  "balance_after": 15000.00,
+  "narration": "Wallet top-up"
+}
+```
+
+`event` and `timestamp` are always present; everything else is
+event-specific — see [Webhook Events](/webhooks/events) for the full
+catalogue and one payload example each.
+
+Every delivery carries two headers:
+
+| Header | Value |
+|---|---|
+| `X-Baas-Event` | The event name, e.g. `post-transaction`. |
+| `X-Baas-Signature` | `sha256=<hmac>` — verify this before trusting the payload. See [Verifying Signatures](/webhooks/signature-verification). |
+
+## Retries
+
+By default, a failed delivery (your endpoint times out, errors, or is
+unreachable) is **not retried** — one attempt only. Set
+`webhook_retry` via
+[Update API Configuration](/api-reference/partner-settings/update-api-configuration)
+to a value from 1–10 to get that many additional attempts.
+
+<Note>
+  There's currently no delivery log or "resend" endpoint in this API. If
+  you need to recover a missed event, use
+  [List Transactions](/api-reference/virtual-accounts/list-transactions)
+  or [Get Transaction Status](/api-reference/virtual-accounts/get-transaction-status-by-reference)
+  to reconcile — treat webhooks as a real-time nice-to-have on top of a
+  system that can also just ask, not your only source of truth.
+</Note>

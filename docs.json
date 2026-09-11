@@ -1,0 +1,123 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Rex BaaS",
+  "description": "Banking-as-a-Service API documentation for Rex partners",
+  "colors": {
+    "primary": "#0D5C63",
+    "light": "#1AA6B7",
+    "dark": "#0D5C63"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "authentication",
+              "errors",
+              "rate-limits"
+            ]
+          },
+          {
+            "group": "Webhooks",
+            "pages": [
+              "webhooks/overview",
+              "webhooks/events",
+              "webhooks/signature-verification"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/going-live-checklist",
+              "guides/sandbox-vs-live",
+              "guides/virtual-vs-merchant-accounts"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "openapi": {
+              "source": "openapi.yaml",
+              "tag": "Authentication"
+            }
+          },
+          {
+            "group": "Onboarding",
+            "openapi": {
+              "source": "openapi.yaml",
+              "tag": "Onboarding"
+            }
+          },
+          {
+            "group": "Wallet",
+            "openapi": {
+              "source": "openapi.yaml",
+              "tag": "Wallet"
+            }
+          },
+          {
+            "group": "Virtual Accounts",
+            "openapi": {
+              "source": "openapi.yaml",
+              "tag": "Virtual Accounts"
+            }
+          },
+          {
+            "group": "Merchant Accounts",
+            "openapi": {
+              "source": "openapi.yaml",
+              "tag": "Merchant Accounts"
+            }
+          },
+          {
+            "group": "Webhooks",
+            "openapi": {
+              "source": "openapi.yaml",
+              "tag": "Webhooks"
+            }
+          },
+          {
+            "group": "Partner Settings",
+            "openapi": {
+              "source": "openapi.yaml",
+              "tag": "Partner Settings"
+            }
+          },
+          {
+            "group": "Services",
+            "openapi": {
+              "source": "openapi.yaml",
+              "tag": "Services"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Support",
+        "href": "mailto:baas-support@rexmfbank.com"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Partner Dashboard",
+      "href": "https://partners.rexmfbank.com"
+    }
+  },
+  "footer": {
+    "socials": {}
+  }
+}

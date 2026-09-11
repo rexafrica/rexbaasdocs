@@ -1,0 +1,80 @@
+---
+title: Going Live Checklist
+description: Everything required before your BaaS partner application can be approved
+---
+
+[Submit Application for Review](/api-reference/onboarding/submit-your-application-for-review)
+checks these in order and tells you exactly what's missing — but it's
+easier to just have all of it ready up front.
+
+## 1. Sign the partner agreement
+
+[Sign the Agreement](/api-reference/onboarding/sign-the-partner-agreement) — one call, no body.
+
+## 2. Add a compliance representative
+
+[Add Your Compliance Representative](/api-reference/onboarding/add-your-compliance-representative) —
+the individual Rex holds accountable for this account. Runs a KYC check
+immediately; you'll know right away if it failed. **BVN is permanent once
+set** — double-check it before submitting.
+
+## 3. Choose a business type
+
+Set via [Save Business Information](/api-reference/onboarding/save-business-information)'s
+`business_type` field. This decides both your document checklist below and
+whether an `rc_number` is required (every type except `not_registered`).
+
+## 4. Upload the required documents for your business type
+
+Upload each via [Upload Compliance Documents](/api-reference/onboarding/upload-compliance-documents)
+or [Upload a Document](/api-reference/partner-settings/upload-a-document-or-brand-asset).
+
+<AccordionGroup>
+  <Accordion title="not_registered">
+    - **Utility Bill** — required
+    - **Valid ID** — required
+  </Accordion>
+  <Accordion title="business_name">
+    - **CAC Certificate** — required
+    - **Business Name Application** — required
+    - **Utility Bill** — required
+  </Accordion>
+  <Accordion title="limited_liability">
+    - **CAC Certificate** — required
+    - **Board Resolution** — required
+    - **Utility Bill** — optional
+    - **Either** Form CO2 *and* Form CO7, **or** a Status Report — one of
+      these two combinations is required; you don't need all three documents.
+  </Accordion>
+  <Accordion title="cooperative">
+    - **CAC Certificate** — required
+    - **Board Resolution** — required
+    - **Utility Bill** — optional
+  </Accordion>
+</AccordionGroup>
+
+Uploading a document type that isn't valid for your chosen business type
+returns `422 INVALID_DOCUMENT_TYPE_FOR_BUSINESS_TYPE` — the message names
+the exact type that was rejected.
+
+## 5. Submit
+
+[Submit Application for Review](/api-reference/onboarding/submit-your-application-for-review).
+Every field from steps 1–4 locks against further edits at this point
+(`409 PROFILE_LOCKED` if you try) — get everything right before this call.
+
+## 6. Wait for approval
+
+Once approved (`onboarding_status: active`), you can
+[switch to `live`](/api-reference/onboarding/switch-environment). Until
+then, everything works in `sandbox` — see [Sandbox vs. Live](/guides/sandbox-vs-live).
+
+## Before you send real traffic
+
+- [Configure a webhook](/api-reference/webhooks/configure-your-webhook) and
+  verify signatures correctly — see
+  [Verifying Signatures](/webhooks/signature-verification).
+- Read the token-lifetime note in [Authentication](/authentication) and
+  decide how your backend will handle re-authentication.
+- If you need Merchant Accounts, subscribe first — see
+  [Virtual vs. Merchant Accounts](/guides/virtual-vs-merchant-accounts).

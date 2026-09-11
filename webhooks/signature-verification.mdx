@@ -1,0 +1,92 @@
+---
+title: Verifying Webhook Signatures
+description: Confirm a webhook request really came from Rex before acting on it
+---
+
+Every webhook delivery carries an `X-Baas-Signature` header:
+
+```
+X-Baas-Signature: sha256=5257a869e7fddb69f...
+```
+
+This is an HMAC-SHA256 of **the exact raw request body bytes**, keyed with
+the signing secret you received from
+[Configure Your Webhook](/api-reference/webhooks/configure-your-webhook).
+
+<Warning>
+  Compute the HMAC over the **raw bytes of the request body**, before your
+  framework parses it into an object — re-serializing a parsed JSON object
+  can reorder keys or change whitespace, which changes the bytes and makes
+  the signature look wrong even though the request is genuine. Read the raw
+  body first, verify, *then* parse it.
+</Warning>
+
+## Verify it
+
+<CodeGroup>
+
+```js Node.js
+const crypto = require('crypto');
+
+function isValidBaasSignature(rawBody, signatureHeader, secret) {
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', secret)
+    .update(rawBody) // the raw request body string/Buffer, not JSON.parse()'d
+    .digest('hex');
+
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signatureHeader)
+  );
+}
+
+// Express example — express.raw() gives you the unparsed body
+app.post('/webhooks/rex', express.raw({ type: 'application/json' }), (req, res) => {
+  const signature = req.header('X-Baas-Signature');
+
+  if (!isValidBaasSignature(req.body, signature, process.env.REX_WEBHOOK_SECRET)) {
+    return res.status(400).send('Invalid signature');
+  }
+
+  const event = JSON.parse(req.body);
+  // ... handle event.event / event.data
+  res.sendStatus(200);
+});
+```
+
+```php PHP
+function isValidBaasSignature(string $rawBody, string $signatureHeader, string $secret): bool
+{
+    $expected = 'sha256=' . hash_hmac('sha256', $rawBody, $secret);
+
+    return hash_equals($expected, $signatureHeader);
+}
+
+// Laravel example
+$rawBody = $request->getContent(); // raw body, before ->json() parses it
+$signature = $request->header('X-Baas-Signature');
+
+if (! isValidBaasSignature($rawBody, $signature, config('services.rex.webhook_secret'))) {
+    abort(400, 'Invalid signature');
+}
+
+$event = json_decode($rawBody, true);
+```
+
+</CodeGroup>
+
+Always use a constant-time comparison (`crypto.timingSafeEqual`,
+`hash_equals`) — never `===`/`==` — so an attacker can't guess your secret
+byte-by-byte via response-timing differences.
+
+## What to do after verifying
+
+1. Check `event` (`X-Baas-Event` header, or the `event` field in the body)
+   against the events you actually handle — see [Webhook Events](/webhooks/events).
+2. Respond `2xx` quickly (Rex doesn't wait long) — do slow work
+   (database writes, side effects) after responding, or in a background job.
+3. Treat delivery as **at-most-once** — see
+   [Retries](/webhooks/overview#retries). If you need a stronger guarantee,
+   reconcile periodically against
+   [List Transactions](/api-reference/virtual-accounts/list-transactions)
+   rather than relying on webhooks alone.

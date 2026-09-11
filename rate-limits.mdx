@@ -1,0 +1,34 @@
+---
+title: Rate Limits
+description: Request throttling on the Rex BaaS API
+---
+
+Requests are limited to **120 per minute**, counted per business account
+(once you're authenticated — pre-login endpoints like
+[Register](/api-reference/authentication/register-a-partner-account) are limited per IP
+address instead).
+
+This is one flat limit shared across every endpoint group — there's no
+separate, higher limit for read (`GET`) calls, and no difference between
+sandbox and live.
+
+A rate-limited request returns:
+
+```json
+{
+  "status": "error",
+  "message": "Too many requests. Please try again later.",
+  "error_code": "TOO_MANY_REQUESTS",
+  "request_id": "a1b2c3d4-..."
+}
+```
+
+with HTTP status `429`. Back off and retry — a fixed delay of a few
+seconds is enough in practice, since the window is per-minute.
+
+<Note>
+  [Update API Configuration](/api-reference/partner-settings/update-api-configuration)
+  accepts a `rate_limit` field, but it isn't wired up to actually change
+  your limit yet — the 120/minute figure above is what's enforced today
+  regardless of what you set there.
+</Note>

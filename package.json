@@ -1,0 +1,13 @@
+{
+  "name": "rex-baas-docs",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Partner API documentation for the Rex Banking-as-a-Service platform",
+  "scripts": {
+    "dev": "mintlify dev",
+    "broken-links": "mintlify broken-links"
+  },
+  "devDependencies": {
+    "mintlify": "latest"
+  }
+}

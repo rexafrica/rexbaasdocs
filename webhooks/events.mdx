@@ -1,0 +1,92 @@
+---
+title: Webhook Events
+description: Every event Rex can send to your webhook, with a full payload example
+---
+
+Four events exist today. All four respect the
+[Toggle Transaction Alerts](/api-reference/webhooks/toggle-transaction-event-notifications)
+switch — turning it off silences all four, there's no per-event toggle.
+
+## `inbound-credit`
+
+Fired when money arrives into one of your virtual or merchant accounts —
+from another bank via NIP, or from
+[Post a Manual Credit](/api-reference/virtual-accounts/post-a-manual-credit-or-debit).
+
+```json
+{
+  "event": "inbound-credit",
+  "timestamp": "2026-01-01T12:00:00+00:00",
+  "reference": "NIP-20260101-00042",
+  "account_number": "9971234567",
+  "amount": 25000.00,
+  "originator_name": "John Smith",
+  "originator_account": "0123456789",
+  "originator_bank": "GTBank"
+}
+```
+
+## `post-transaction`
+
+Fired when [Post a Manual Credit or Debit](/api-reference/virtual-accounts/post-a-manual-credit-or-debit)
+completes, on either a virtual account or a merchant account.
+
+```json
+{
+  "event": "post-transaction",
+  "timestamp": "2026-01-01T12:00:00+00:00",
+  "reference": "TXN-001",
+  "account_number": "9971234567",
+  "direction": "credit",
+  "amount": 5000.00,
+  "balance_after": 15000.00,
+  "narration": "Wallet top-up"
+}
+```
+
+`direction` is `credit` or `debit`, matching the `transactionType` you sent.
+
+## `internal-transfer`
+
+Fired when [Transfer Between Accounts](/api-reference/virtual-accounts/transfer-between-rex-issued-accounts)
+completes. If the beneficiary account belongs to a **different** Rex BaaS
+partner, both partners get this event — you see it because your account
+was the source or the beneficiary, whichever applies to you.
+
+```json
+{
+  "event": "internal-transfer",
+  "timestamp": "2026-01-01T12:00:00+00:00",
+  "reference": "REF-001",
+  "source_account_number": "9971234567",
+  "beneficiary_account_number": "9979876543",
+  "amount": 10000.00,
+  "narration": "Payout"
+}
+```
+
+## `interbank-transfer`
+
+Fired when [Transfer to Another Bank](/api-reference/virtual-accounts/transfer-to-another-bank)
+completes.
+
+```json
+{
+  "event": "interbank-transfer",
+  "timestamp": "2026-01-01T12:00:00+00:00",
+  "reference": "REF-002",
+  "source_account_number": "9971234567",
+  "beneficiary_account_number": "0123456789",
+  "beneficiary_bank_code": "058",
+  "amount": 10000.00,
+  "narration": "Vendor payment",
+  "status": "SUCCESSFUL"
+}
+```
+
+## Not yet events
+
+There's no event for account creation, status changes
+(active/inactive), disputes, or KYC/onboarding status transitions. If your
+integration needs to react to any of those today, poll the relevant `GET`
+endpoint instead.

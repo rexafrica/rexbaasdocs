@@ -1,0 +1,72 @@
+---
+title: Errors
+description: The shared response and error shape used by every endpoint
+---
+
+## Success shape
+
+Every successful response looks like this:
+
+```json
+{
+  "status": "success",
+  "message": "Human-readable summary of what happened.",
+  "data": { }
+}
+```
+
+`data` is endpoint-specific — see each operation's reference page for its
+shape. `data` may be `null` for actions that don't return a resource (a
+toggle, a delete).
+
+## Error shape
+
+```json
+{
+  "status": "error",
+  "message": "Human-readable, safe to show a user.",
+  "error_code": "ACCOUNT_NOT_FOUND",
+  "request_id": "a1b2c3d4-...",
+  "errors": { }
+}
+```
+
+- **`message`** is written to be shown directly to an end user if you want to.
+- **`error_code`** is the stable, machine-readable field — switch your code
+  on this, not on `message` (wording can change; the code won't). Every
+  code used across this API is documented on the operation that returns it.
+- **`request_id`** — include this when contacting support about a specific
+  failed call.
+- **`errors`** is only present on `422` validation failures — an object
+  keyed by field name, each value an array of messages:
+
+```json
+{
+  "status": "error",
+  "message": "Validation failed.",
+  "error_code": "VALIDATION_FAILED",
+  "errors": {
+    "email": ["The email field is required."]
+  }
+}
+```
+
+## HTTP status codes used
+
+| Status | Default `message` / `error_code` | Meaning |
+|---|---|---|
+| `200` | — | Success. |
+| `401` | "Unauthenticated." / `UNAUTHENTICATED` | Missing, invalid, or expired bearer token — see [Authentication](/authentication). |
+| `403` | "Forbidden." / `FORBIDDEN` | Authenticated, but not allowed to do this (e.g. not yet subscribed to a service, or a feature gated to Rex's own test environment) — though most `403`s in this API return a more specific `error_code` on the operation itself (e.g. `NOT_SUBSCRIBED`) rather than this generic one. |
+| `404` | "Resource not found." / `NOT_FOUND` | The resource, or the specific thing you asked about, doesn't exist. Most operations return a more specific code (e.g. `ACCOUNT_NOT_FOUND`). |
+| `409` | "Request conflict." / `CONFLICT` | Something about current state blocks this — almost always documented with a specific code on the operation (`DUPLICATE_REFERENCE`, `ALREADY_SUBSCRIBED`, `PROFILE_LOCKED`, `FBO_NOT_PROVISIONED`, …). |
+| `422` | "Request could not be processed." / `UNPROCESSABLE_ENTITY`, or `"Validation failed."` / `VALIDATION_FAILED` with `errors` populated | A body validation failure, or a business precondition your request can't currently satisfy — check the operation's documented `error_code`s. |
+| `429` | "Too many requests. Please try again later." / `TOO_MANY_REQUESTS` | Rate limited — see [Rate Limits](/rate-limits). |
+| `500` | Always a generic, safe message — see below | Something went wrong on our end. |
+
+## A note on `error_code` values
+
+`error_code` is only guaranteed present when it's genuinely one of ours —
+you'll notice each operation's reference lists a specific, finite set (e.g.
+`ACCOUNT_NOT_FOUND`, `INSUFFICIENT_BALANCE`, `DUPLICATE_REFERENCE`). Don't
+assume every possible failure has a code beyond that documented set.

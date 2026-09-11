@@ -1,0 +1,95 @@
+---
+title: Authentication
+description: How to authenticate requests to the Rex BaaS API
+---
+
+Every authenticated endpoint expects a bearer token:
+
+```
+Authorization: Bearer <token>
+```
+
+## Getting a token
+
+Call [Login](/api-reference/authentication/log-in) with the email and
+password you registered with:
+
+```bash
+curl -X POST https://api.rexmfbank.com/baas/api/v1/client/onboarding/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "ops@acmepayments.com", "password": "correct-horse-battery-staple"}'
+```
+
+```json
+{
+  "status": "success",
+  "message": "Login successful.",
+  "data": {
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "token_type": "Bearer",
+    "expires_in": 7200,
+    "environment": "sandbox"
+  }
+}
+```
+
+Use `data.token` as the bearer credential on every subsequent call — the
+onboarding endpoints (business info, representative, documents…) **and**
+the service-call endpoints (virtual accounts, merchant accounts, transfers)
+all check the exact same token.
+
+<Warning>
+  **This token currently gates everything — the API key described below
+  does not.** Read on before you build anything long-running against this.
+</Warning>
+
+## Token lifetime — read this before you integrate
+
+`expires_in` is seconds, and today that's **7200 (2 hours)** by default. There
+is no refresh-token endpoint. When a token expires, requests fail with
+`401 Unauthenticated` and the only way to get a new one is to call
+[Login](/api-reference/authentication/log-in) again with your email and password.
+
+For a quick dashboard session this is normal. For a **server-to-server
+integration that needs to keep working unattended**, it means your backend
+needs one of:
+
+- a small wrapper that catches `401`s and transparently re-authenticates
+  with a stored email/password before retrying, or
+- a scheduled re-login every ~90 minutes to keep a warm token on hand.
+
+Neither is how most bank APIs expect you to integrate, and it does mean
+your service needs to hold your login password in a place your own backend
+can read it. We're calling this out explicitly rather than letting you
+discover it the first time a long-running job 401s at 2am.
+
+## About the API key endpoint
+
+[Issue an API Key](/api-reference/authentication/issue-an-api-key) exists and
+returns a real-looking `sk_live_...` / `sk_sandbox_...` secret. **As of this
+writing, no endpoint actually checks this key for anything** — every
+endpoint, including the ones you'd expect a static key to protect, only
+accepts the login-issued bearer token above. Don't build an integration
+that authenticates with this key; it won't work in production today.
+
+If you're seeing this and are a Rex-side reader: this is the one thing in
+this whole reference worth resolving before onboarding an external partner —
+either wire the key into the `baas.partner.auth` guard as a real
+alternative credential, or pull the endpoint until it's ready. Shipping a
+secret key that silently does nothing is worse than not offering one.
+
+## Sandbox vs. live tokens
+
+Your account has one `environment` setting (`sandbox` or `live`), switched
+with [Switch Environment](/api-reference/onboarding/switch-environment). A
+token is valid regardless of environment — it's the account-level
+`environment` field that decides which ledger your service calls hit, not
+the token itself. See [Sandbox vs. Live](/guides/sandbox-vs-live) for the
+full picture.
+
+## Two-factor authentication
+
+You can require a second factor on login via
+[Toggle Two-Factor Authentication](/api-reference/partner-settings/enable-or-disable-two-factor-authentication).
+This reference doesn't yet cover the 2FA challenge flow in detail — if
+you've enabled it, reach out to support for the exact request shape.
