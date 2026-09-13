@@ -41,22 +41,15 @@ tags:
       before going live — business details, a compliance representative,
       supporting documents, and signing the partner agreement.
   - name: Wallet
-    description: Your business's own settlement balance — the account every virtual/merchant account nets into.
+    description: Your business's own settlement balance — the account every virtual account nets into.
   - name: Virtual Accounts
     description: |
       The core product — dedicated bank account numbers you issue to your
       own end users, with full transfer and transaction capabilities.
-  - name: Merchant Accounts
-    description: |
-      A distinct, inward-only account type for receiving payments at a
-      terminal or point of sale. Cannot originate a transfer — see
-      **[Virtual Accounts vs. Merchant Accounts](/guides/virtual-vs-merchant-accounts)**.
   - name: Webhooks
     description: Configure where and how Rex notifies your system of events in real time.
   - name: Partner Settings
     description: Account security, team members, disputes, and document management for your own partner account.
-  - name: Services
-    description: Subscribe your business to optional BaaS services.
 
 components:
   securitySchemes:
@@ -379,6 +372,7 @@ paths:
       security: []
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { countries: ["Nigeria", "Ghana", "Kenya"] } }
@@ -422,6 +416,7 @@ paths:
           schema: { type: string, enum: [sandbox, live] }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { keys: [{ environment: sandbox, public_key: "pk_sandbox_...", secret_key: "sk_***masked***" }] } }
@@ -470,6 +465,7 @@ paths:
         these pieces.
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example:
@@ -515,6 +511,7 @@ paths:
                 address: { type: string, nullable: true }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example:
@@ -559,6 +556,7 @@ paths:
       summary: Sign the partner agreement
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { agreed_to_terms_at: "2026-01-01T00:00:00Z" } }
@@ -576,6 +574,7 @@ paths:
         submitted.
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { onboarding_status: pending_review } }
@@ -601,7 +600,7 @@ paths:
           application/json:
             schema: { type: object, required: [environment], properties: { environment: { type: string, enum: [sandbox, live] } } }
       responses:
-        "200": { content: { application/json: { example: { status: success, message: Success, data: { environment: live } } } } }
+        "200": { description: OK, content: { application/json: { example: { status: success, message: Success, data: { environment: live } } } } }
         "403": { description: "`NOT_ACTIVE` — not yet approved for live" }
 
   /client/onboarding/dashboard-metrics:
@@ -610,6 +609,7 @@ paths:
       summary: Dashboard summary metrics
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example:
@@ -640,6 +640,7 @@ paths:
           description: Defaults to your session's current environment.
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example:
@@ -662,6 +663,21 @@ paths:
         "200": { description: Funded }
         "409": { description: "`MASTER_NOT_PROVISIONED`" }
 
+  /services/virtual-account/bank-list:
+    get:
+      tags: [Virtual Accounts]
+      summary: List banks
+      description: |
+        Returns the list of financial institutions and their NIP bank
+        codes, for use as `beneficiaryBankCode` on **Transfer to another
+        bank**.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example: { status: success, message: Success, data: [{ bank_name: "Rex MFBank", bank_code: "090449" }, { bank_name: "Access Bank", bank_code: "000014" }] }
+
   /services/virtual-account/create:
     post:
       tags: [Virtual Accounts]
@@ -681,6 +697,7 @@ paths:
                 phone: { type: string, nullable: true }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: "Virtual account created.", data: { account_number: "9971234567", account_name: "REX/Jane Doe", status: active, balance: 0 } }
@@ -697,6 +714,7 @@ paths:
         - $ref: "#/components/parameters/PerPage"
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { data: [{ account_number: "9971234567", status: active }], current_page: 1, per_page: 20, total: 1 } }
@@ -711,7 +729,7 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        "200": { content: { application/json: { schema: { $ref: "#/components/schemas/SuccessEnvelope" } } } }
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessEnvelope" } } } }
         "404": { description: "`ACCOUNT_NOT_FOUND`" }
 
   /services/virtual-account/{accountNo}/update-status:
@@ -764,6 +782,7 @@ paths:
           description: Not yet supported — returns `422 EXTERNAL_LOOKUP_NOT_SUPPORTED` if set.
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { account_number: "9971234567", account_name: "REX/Jane Doe", bank_name: "Rex MFBank" } }
@@ -799,6 +818,7 @@ paths:
                 channel: { type: string, nullable: true }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: "Internal transfer SUCCESSFUL.", data: { reference: "REF-001", transactionStatus: SUCCESSFUL } }
@@ -833,6 +853,7 @@ paths:
                 channel: { type: string, nullable: true }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: "Interbank transfer SUCCESSFUL.", data: { reference: "REF-002", transactionStatus: SUCCESSFUL } }
@@ -924,116 +945,6 @@ paths:
         "403": { description: "`NOT_AVAILABLE_IN_ENVIRONMENT`" }
         "404": { description: "`ACCOUNT_NOT_FOUND`" }
 
-  /services/merchant-account/create:
-    post:
-      tags: [Merchant Accounts]
-      summary: Create a merchant account
-      description: |
-        Requires your business to be subscribed to Merchant Terminal
-        Accounts first (see **Subscribe to a Service**). See
-        **[Virtual Accounts vs. Merchant Accounts](/guides/virtual-vs-merchant-accounts)**
-        for when to use this instead of a Virtual Account.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [account_name]
-              properties:
-                account_name: { type: string, maxLength: 191 }
-                terminal_id: { type: integer, nullable: true }
-                terminal_reference: { type: string, nullable: true }
-      responses:
-        "200": { content: { application/json: { example: { status: success, message: "Merchant account created.", data: { account_number: "9979876543", account_name: "Alex Store — Till 1", status: active } } } } }
-        "403": { description: "`NOT_SUBSCRIBED`" }
-        "404": { description: "`TERMINAL_NOT_FOUND`" }
-        "409": { description: "`MASTER_NOT_PROVISIONED`" }
-
-  /services/merchant-account:
-    get:
-      tags: [Merchant Accounts]
-      summary: List merchant accounts
-      parameters:
-        - name: status
-          in: query
-          schema: { type: string }
-        - $ref: "#/components/parameters/PerPage"
-      responses:
-        "200": { description: Paginated list }
-
-  /services/merchant-account/{accountNo}/info:
-    get:
-      tags: [Merchant Accounts]
-      summary: Get a merchant account
-      parameters:
-        - name: accountNo
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200": { description: OK }
-        "404": { description: "`ACCOUNT_NOT_FOUND`" }
-
-  /services/merchant-account/{accountNo}/update-status:
-    post:
-      tags: [Merchant Accounts]
-      summary: Activate or deactivate a merchant account
-      parameters:
-        - name: accountNo
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { type: object, required: [status], properties: { status: { type: string, enum: [active, inactive] } } }
-      responses:
-        "200": { description: Updated }
-        "404": { description: "`ACCOUNT_NOT_FOUND`" }
-
-  /services/merchant-account/{accountNo}/wallet-balance:
-    get:
-      tags: [Merchant Accounts]
-      summary: Get a merchant account's balance
-      parameters:
-        - name: accountNo
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200": { description: OK }
-        "404": { description: "`ACCOUNT_NOT_FOUND`" }
-
-  /services/merchant-account/transactions:
-    get:
-      tags: [Merchant Accounts]
-      summary: List merchant account transactions
-      parameters:
-        - name: account_number
-          in: query
-          schema: { type: string }
-        - name: status
-          in: query
-          schema: { type: string }
-        - $ref: "#/components/parameters/PerPage"
-      responses:
-        "200": { description: Paginated list }
-
-  /services/merchant-account/transactions/status:
-    get:
-      tags: [Merchant Accounts]
-      summary: Get transaction status by reference
-      parameters:
-        - name: reference
-          in: query
-          required: true
-          schema: { type: string }
-      responses:
-        "200": { description: OK }
-        "404": { description: "`TRANSACTION_NOT_FOUND`" }
-
   /services/partner/webhook:
     post:
       tags: [Webhooks]
@@ -1067,6 +978,7 @@ paths:
       summary: Get your webhook configuration
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { url: "https://acme.example/webhooks/rex", secret: "whsec_***masked***", webhook_alert: true, transaction_alert: true } }
@@ -1280,16 +1192,3 @@ paths:
         "409": { description: "`BUSINESS_TYPE_NOT_SET`" }
         "422": { description: "`INVALID_DOCUMENT_TYPE_FOR_BUSINESS_TYPE`" }
 
-  /services/subscribe/create:
-    post:
-      tags: [Services]
-      summary: Subscribe to a service
-      description: Required before creating a Merchant Account — see **Create a Merchant Account**.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { type: object, required: [serviceId], properties: { serviceId: { type: integer, minimum: 1 } } }
-      responses:
-        "200": { description: Subscribed }
-        "409": { description: "`ALREADY_SUBSCRIBED`" }

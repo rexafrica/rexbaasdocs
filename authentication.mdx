@@ -35,8 +35,8 @@ curl -X POST https://api.rexmfbank.com/baas/api/v1/client/onboarding/login \
 
 Use `data.token` as the bearer credential on every subsequent call — the
 onboarding endpoints (business info, representative, documents…) **and**
-the service-call endpoints (virtual accounts, merchant accounts, transfers)
-all check the exact same token.
+the service-call endpoints (virtual accounts and transfers) all check the
+exact same token.
 
 <Warning>
   **This token currently gates everything — the API key described below

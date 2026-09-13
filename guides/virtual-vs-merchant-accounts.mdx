@@ -1,13 +1,10 @@
 ---
-title: Virtual Accounts vs. Merchant Accounts
-description: Two account types, two different jobs — how to pick
+title: Virtual Accounts
+description: The core account type for your Rex partners
 ---
 
-Both are dedicated Rex bank account numbers you can issue under your own
-business. They are not two tiers of the same thing — they're built for
-different jobs, and one of them structurally cannot do what the other does.
-
-## Virtual Accounts
+Virtual Accounts are the standard Rex account type for issuing wallets and
+collecting inbound transfers for your users.
 
 Use this for **end users you want to give a wallet to** — the general-purpose
 account type. A Virtual Account can:
@@ -18,29 +15,3 @@ account type. A Virtual Account can:
 - Be posted to directly ([Post a Manual Credit or Debit](/api-reference/virtual-accounts/post-a-manual-credit-or-debit))
 
 No subscription required — available as soon as your partner account is provisioned.
-
-## Merchant Accounts
-
-Use this for **collecting payments at a terminal or point of sale** — a
-narrower, purpose-built account type. A Merchant Account:
-
-- **Can receive money, and can never send it.** There's no transfer/send
-  endpoint for this account type at all — it isn't a permission you can
-  toggle, the capability doesn't exist in the API surface. If you need an
-  account that can pay out, that's what a Virtual Account is for.
-- Is always funded from your business Master balance, never from a
-  "virtual account FBO" the way Virtual Accounts are internally.
-- Can optionally be tied to a specific `terminal_id` you already have
-  registered with Rex.
-- **Requires a service subscription first** —
-  [Subscribe to a Service](/api-reference/services/subscribe-to-a-service) —
-  before [Create a Merchant Account](/api-reference/merchant-accounts/create-a-merchant-account)
-  will succeed. Skipping this returns `403 NOT_SUBSCRIBED`.
-
-## Quick decision
-
-| If you need to... | Use |
-|---|---|
-| Give an end user a wallet they can send from | Virtual Account |
-| Collect payment at a till/terminal, no outgoing transfers | Merchant Account |
-| Both send and receive on the same account | Virtual Account — Merchant Accounts can't send |
