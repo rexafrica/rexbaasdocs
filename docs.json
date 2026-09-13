@@ -35,8 +35,7 @@
             "group": "Guides",
             "pages": [
               "guides/going-live-checklist",
-              "guides/sandbox-vs-live",
-              "guides/virtual-vs-merchant-accounts"
+              "guides/sandbox-vs-live"
             ]
           }
         ]

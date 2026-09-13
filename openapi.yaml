@@ -41,22 +41,15 @@ tags:
       before going live — business details, a compliance representative,
       supporting documents, and signing the partner agreement.
   - name: Wallet
-    description: Your business's own settlement balance — the account every virtual/merchant account nets into.
+    description: Your business's own settlement balance — the account every virtual account nets into.
   - name: Virtual Accounts
     description: |
       The core product — dedicated bank account numbers you issue to your
       own end users, with full transfer and transaction capabilities.
-  - name: Merchant Accounts
-    description: |
-      A distinct, inward-only account type for receiving payments at a
-      terminal or point of sale. Cannot originate a transfer — see
-      **[Virtual Accounts vs. Merchant Accounts](/guides/virtual-vs-merchant-accounts)**.
   - name: Webhooks
     description: Configure where and how Rex notifies your system of events in real time.
   - name: Partner Settings
     description: Account security, team members, disputes, and document management for your own partner account.
-  - name: Services
-    description: Subscribe your business to optional BaaS services.
 
 components:
   securitySchemes:
@@ -952,116 +945,6 @@ paths:
         "403": { description: "`NOT_AVAILABLE_IN_ENVIRONMENT`" }
         "404": { description: "`ACCOUNT_NOT_FOUND`" }
 
-  /services/merchant-account/create:
-    post:
-      tags: [Merchant Accounts]
-      summary: Create a merchant account
-      description: |
-        Requires your business to be subscribed to Merchant Terminal
-        Accounts first (see **Subscribe to a Service**). See
-        **[Virtual Accounts vs. Merchant Accounts](/guides/virtual-vs-merchant-accounts)**
-        for when to use this instead of a Virtual Account.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [account_name]
-              properties:
-                account_name: { type: string, maxLength: 191 }
-                terminal_id: { type: integer, nullable: true }
-                terminal_reference: { type: string, nullable: true }
-      responses:
-        "200": { description: OK, content: { application/json: { example: { status: success, message: "Merchant account created.", data: { account_number: "9979876543", account_name: "Alex Store — Till 1", status: active } } } } }
-        "403": { description: "`NOT_SUBSCRIBED`" }
-        "404": { description: "`TERMINAL_NOT_FOUND`" }
-        "409": { description: "`MASTER_NOT_PROVISIONED`" }
-
-  /services/merchant-account:
-    get:
-      tags: [Merchant Accounts]
-      summary: List merchant accounts
-      parameters:
-        - name: status
-          in: query
-          schema: { type: string }
-        - $ref: "#/components/parameters/PerPage"
-      responses:
-        "200": { description: Paginated list }
-
-  /services/merchant-account/{accountNo}/info:
-    get:
-      tags: [Merchant Accounts]
-      summary: Get a merchant account
-      parameters:
-        - name: accountNo
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200": { description: OK }
-        "404": { description: "`ACCOUNT_NOT_FOUND`" }
-
-  /services/merchant-account/{accountNo}/update-status:
-    post:
-      tags: [Merchant Accounts]
-      summary: Activate or deactivate a merchant account
-      parameters:
-        - name: accountNo
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { type: object, required: [status], properties: { status: { type: string, enum: [active, inactive] } } }
-      responses:
-        "200": { description: Updated }
-        "404": { description: "`ACCOUNT_NOT_FOUND`" }
-
-  /services/merchant-account/{accountNo}/wallet-balance:
-    get:
-      tags: [Merchant Accounts]
-      summary: Get a merchant account's balance
-      parameters:
-        - name: accountNo
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200": { description: OK }
-        "404": { description: "`ACCOUNT_NOT_FOUND`" }
-
-  /services/merchant-account/transactions:
-    get:
-      tags: [Merchant Accounts]
-      summary: List merchant account transactions
-      parameters:
-        - name: account_number
-          in: query
-          schema: { type: string }
-        - name: status
-          in: query
-          schema: { type: string }
-        - $ref: "#/components/parameters/PerPage"
-      responses:
-        "200": { description: Paginated list }
-
-  /services/merchant-account/transactions/status:
-    get:
-      tags: [Merchant Accounts]
-      summary: Get transaction status by reference
-      parameters:
-        - name: reference
-          in: query
-          required: true
-          schema: { type: string }
-      responses:
-        "200": { description: OK }
-        "404": { description: "`TRANSACTION_NOT_FOUND`" }
-
   /services/partner/webhook:
     post:
       tags: [Webhooks]
@@ -1309,16 +1192,3 @@ paths:
         "409": { description: "`BUSINESS_TYPE_NOT_SET`" }
         "422": { description: "`INVALID_DOCUMENT_TYPE_FOR_BUSINESS_TYPE`" }
 
-  /services/subscribe/create:
-    post:
-      tags: [Services]
-      summary: Subscribe to a service
-      description: Required before creating a Merchant Account — see **Create a Merchant Account**.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { type: object, required: [serviceId], properties: { serviceId: { type: integer, minimum: 1 } } }
-      responses:
-        "200": { description: Subscribed }
-        "409": { description: "`ALREADY_SUBSCRIBED`" }

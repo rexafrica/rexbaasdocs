@@ -57,9 +57,9 @@ toggle, a delete).
 |---|---|---|
 | `200` | — | Success. |
 | `401` | "Unauthenticated." / `UNAUTHENTICATED` | Missing, invalid, or expired bearer token — see [Authentication](/authentication). |
-| `403` | "Forbidden." / `FORBIDDEN` | Authenticated, but not allowed to do this (e.g. not yet subscribed to a service, or a feature gated to Rex's own test environment) — though most `403`s in this API return a more specific `error_code` on the operation itself (e.g. `NOT_SUBSCRIBED`) rather than this generic one. |
+| `403` | "Forbidden." / `FORBIDDEN` | Authenticated, but not allowed to do this, or a feature is gated to Rex's own test environment — though most `403`s in this API return a more specific `error_code` on the operation itself rather than this generic one. |
 | `404` | "Resource not found." / `NOT_FOUND` | The resource, or the specific thing you asked about, doesn't exist. Most operations return a more specific code (e.g. `ACCOUNT_NOT_FOUND`). |
-| `409` | "Request conflict." / `CONFLICT` | Something about current state blocks this — almost always documented with a specific code on the operation (`DUPLICATE_REFERENCE`, `ALREADY_SUBSCRIBED`, `PROFILE_LOCKED`, `FBO_NOT_PROVISIONED`, …). |
+| `409` | "Request conflict." / `CONFLICT` | Something about current state blocks this — almost always documented with a specific code on the operation (`DUPLICATE_REFERENCE`, `PROFILE_LOCKED`, `FBO_NOT_PROVISIONED`, …). |
 | `422` | "Request could not be processed." / `UNPROCESSABLE_ENTITY`, or `"Validation failed."` / `VALIDATION_FAILED` with `errors` populated | A body validation failure, or a business precondition your request can't currently satisfy — check the operation's documented `error_code`s. |
 | `429` | "Too many requests. Please try again later." / `TOO_MANY_REQUESTS` | Rate limited — see [Rate Limits](/rate-limits). |
 | `500` | Always a generic, safe message — see below | Something went wrong on our end. |
