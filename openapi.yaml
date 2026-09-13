@@ -379,6 +379,7 @@ paths:
       security: []
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { countries: ["Nigeria", "Ghana", "Kenya"] } }
@@ -422,6 +423,7 @@ paths:
           schema: { type: string, enum: [sandbox, live] }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { keys: [{ environment: sandbox, public_key: "pk_sandbox_...", secret_key: "sk_***masked***" }] } }
@@ -470,6 +472,7 @@ paths:
         these pieces.
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example:
@@ -515,6 +518,7 @@ paths:
                 address: { type: string, nullable: true }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example:
@@ -559,6 +563,7 @@ paths:
       summary: Sign the partner agreement
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { agreed_to_terms_at: "2026-01-01T00:00:00Z" } }
@@ -576,6 +581,7 @@ paths:
         submitted.
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { onboarding_status: pending_review } }
@@ -601,7 +607,7 @@ paths:
           application/json:
             schema: { type: object, required: [environment], properties: { environment: { type: string, enum: [sandbox, live] } } }
       responses:
-        "200": { content: { application/json: { example: { status: success, message: Success, data: { environment: live } } } } }
+        "200": { description: OK, content: { application/json: { example: { status: success, message: Success, data: { environment: live } } } } }
         "403": { description: "`NOT_ACTIVE` — not yet approved for live" }
 
   /client/onboarding/dashboard-metrics:
@@ -610,6 +616,7 @@ paths:
       summary: Dashboard summary metrics
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example:
@@ -640,6 +647,7 @@ paths:
           description: Defaults to your session's current environment.
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example:
@@ -662,6 +670,21 @@ paths:
         "200": { description: Funded }
         "409": { description: "`MASTER_NOT_PROVISIONED`" }
 
+  /services/virtual-account/bank-list:
+    get:
+      tags: [Virtual Accounts]
+      summary: List banks
+      description: |
+        Returns the list of financial institutions and their NIP bank
+        codes, for use as `beneficiaryBankCode` on **Transfer to another
+        bank**.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example: { status: success, message: Success, data: [{ bank_name: "Rex MFBank", bank_code: "090449" }, { bank_name: "Access Bank", bank_code: "000014" }] }
+
   /services/virtual-account/create:
     post:
       tags: [Virtual Accounts]
@@ -681,6 +704,7 @@ paths:
                 phone: { type: string, nullable: true }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: "Virtual account created.", data: { account_number: "9971234567", account_name: "REX/Jane Doe", status: active, balance: 0 } }
@@ -697,6 +721,7 @@ paths:
         - $ref: "#/components/parameters/PerPage"
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { data: [{ account_number: "9971234567", status: active }], current_page: 1, per_page: 20, total: 1 } }
@@ -711,7 +736,7 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        "200": { content: { application/json: { schema: { $ref: "#/components/schemas/SuccessEnvelope" } } } }
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessEnvelope" } } } }
         "404": { description: "`ACCOUNT_NOT_FOUND`" }
 
   /services/virtual-account/{accountNo}/update-status:
@@ -764,6 +789,7 @@ paths:
           description: Not yet supported — returns `422 EXTERNAL_LOOKUP_NOT_SUPPORTED` if set.
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { account_number: "9971234567", account_name: "REX/Jane Doe", bank_name: "Rex MFBank" } }
@@ -799,6 +825,7 @@ paths:
                 channel: { type: string, nullable: true }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: "Internal transfer SUCCESSFUL.", data: { reference: "REF-001", transactionStatus: SUCCESSFUL } }
@@ -833,6 +860,7 @@ paths:
                 channel: { type: string, nullable: true }
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: "Interbank transfer SUCCESSFUL.", data: { reference: "REF-002", transactionStatus: SUCCESSFUL } }
@@ -945,7 +973,7 @@ paths:
                 terminal_id: { type: integer, nullable: true }
                 terminal_reference: { type: string, nullable: true }
       responses:
-        "200": { content: { application/json: { example: { status: success, message: "Merchant account created.", data: { account_number: "9979876543", account_name: "Alex Store — Till 1", status: active } } } } }
+        "200": { description: OK, content: { application/json: { example: { status: success, message: "Merchant account created.", data: { account_number: "9979876543", account_name: "Alex Store — Till 1", status: active } } } } }
         "403": { description: "`NOT_SUBSCRIBED`" }
         "404": { description: "`TERMINAL_NOT_FOUND`" }
         "409": { description: "`MASTER_NOT_PROVISIONED`" }
@@ -1067,6 +1095,7 @@ paths:
       summary: Get your webhook configuration
       responses:
         "200":
+          description: OK
           content:
             application/json:
               example: { status: success, message: Success, data: { url: "https://acme.example/webhooks/rex", secret: "whsec_***masked***", webhook_alert: true, transaction_alert: true } }

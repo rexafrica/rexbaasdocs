@@ -45,60 +45,8 @@
         "tab": "API Reference",
         "groups": [
           {
-            "group": "Authentication",
-            "openapi": {
-              "source": "openapi.yaml",
-              "tag": "Authentication"
-            }
-          },
-          {
-            "group": "Onboarding",
-            "openapi": {
-              "source": "openapi.yaml",
-              "tag": "Onboarding"
-            }
-          },
-          {
-            "group": "Wallet",
-            "openapi": {
-              "source": "openapi.yaml",
-              "tag": "Wallet"
-            }
-          },
-          {
-            "group": "Virtual Accounts",
-            "openapi": {
-              "source": "openapi.yaml",
-              "tag": "Virtual Accounts"
-            }
-          },
-          {
-            "group": "Merchant Accounts",
-            "openapi": {
-              "source": "openapi.yaml",
-              "tag": "Merchant Accounts"
-            }
-          },
-          {
-            "group": "Webhooks",
-            "openapi": {
-              "source": "openapi.yaml",
-              "tag": "Webhooks"
-            }
-          },
-          {
-            "group": "Partner Settings",
-            "openapi": {
-              "source": "openapi.yaml",
-              "tag": "Partner Settings"
-            }
-          },
-          {
-            "group": "Services",
-            "openapi": {
-              "source": "openapi.yaml",
-              "tag": "Services"
-            }
+            "group": "API Reference",
+            "openapi": "openapi.yaml"
           }
         ]
       }
