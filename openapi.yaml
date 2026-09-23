@@ -24,10 +24,8 @@ info:
     name: Proprietary — for approved Rex BaaS partners only
 
 servers:
-  - url: https://api.rexmfbank.com/baas/api/v1
-    description: Live
-  - url: https://sandbox-api.rexmfbank.com/baas/api/v1
-    description: Sandbox
+  - url: https://rexcore-api.rexafrica.com/baas/api/v1
+    description: Rex BaaS API
 
 security:
   - BearerAuth: []
