@@ -5,8 +5,9 @@ info:
   summary: Embed real bank accounts, transfers, and collections into your product.
   description: |
     The Rex BaaS API lets you provision virtual bank accounts, move money
-    between them, accept inbound transfers, and collect at merchant terminals —
-    all under your own brand, backed by a real bank ledger.
+    between them, accept inbound transfers, collect at merchant terminals, and
+    pay bills for your end customers — all under your own brand, backed by a
+    real bank ledger.
 
     This reference covers every endpoint your integration will call. If
     you're just getting started, read **[Getting Started](/introduction)**
@@ -48,6 +49,16 @@ tags:
     description: Configure where and how Rex notifies your system of events in real time.
   - name: Partner Settings
     description: Account security, team members, disputes, and document management for your own partner account.
+  - name: Services
+    description: |
+      The catalog of optional products a partner can subscribe to. Virtual
+      accounts are not in this list — they are available without a
+      subscription. Bills payment is.
+  - name: Bills Payment
+    description: |
+      Buy airtime, data, electricity, and cable TV for your end customers.
+      Each purchase debits your own Master account. Requires a Bills Payment
+      subscription — see **[Services](/guides/service-subscriptions)**.
 
 components:
   securitySchemes:
@@ -69,6 +80,20 @@ components:
         minimum: 1
         maximum: 100
         default: 20
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        Required on purchase endpoints. Use a new key for each intended
+        purchase, and reuse that same key when retrying the same request
+        after a timeout. A completed key replays the original response. The
+        same key with a different body is rejected. Keys expire after 24
+        hours. A missing key returns `400` with no `error_code`.
+      schema:
+        type: string
+        maxLength: 255
 
   schemas:
     SuccessEnvelope:
@@ -184,6 +209,28 @@ components:
         created_at:
           type: string
           format: date-time
+
+    BillsTransaction:
+      type: object
+      description: |
+        A bills-payment debit against the partner Master account. `id` and
+        every `*_id` are strings. Money fields are decimal strings.
+      properties:
+        id: { type: string, example: "101" }
+        company_id: { type: string, example: "28" }
+        master_savings_id: { type: string, example: "55" }
+        bill_type: { type: string, enum: [airtime, data, electricity, cable] }
+        direction: { type: string, enum: [debit] }
+        amount: { type: string, example: "1000.00" }
+        fee_amount: { type: string, example: "0.00" }
+        balance_after: { type: string, example: "49000.00" }
+        reference: { type: string, example: PROVIDER-REFERENCE }
+        status: { type: string, example: successful }
+        narration: { type: string }
+        savings_transaction_id: { type: string, example: "9001" }
+        meta: { type: object, additionalProperties: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
 paths:
   /client/onboarding/register:
@@ -942,6 +989,416 @@ paths:
         "200": { description: Simulated credit posted }
         "403": { description: "`NOT_AVAILABLE_IN_ENVIRONMENT`" }
         "404": { description: "`ACCOUNT_NOT_FOUND`" }
+
+  /services:
+    get:
+      tags: [Services]
+      summary: List available services
+      description: |
+        Active, subscribable products. Virtual-account services are excluded —
+        those are available through the virtual-account endpoints without a
+        subscription request. `is_subscribed` is `true` when this partner
+        already has an active subscription for that service.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Services retrieved successfully."
+                data:
+                  - { id: 1, name: "Merchant Terminal Accounts", requirement: null, description: "Create inward-only sub-accounts per POS terminal, mirroring inward credits onto the partner's own Master account.", is_subscribed: false }
+                  - { id: 2, name: "Bills Payment", requirement: null, description: "Buy airtime, data, electricity and cable TV for end customers, debited against the partner's own Master account.", is_subscribed: true }
+        "401": { description: Missing or invalid bearer token }
+
+  /services/subscribe/create:
+    post:
+      tags: [Services]
+      summary: Subscribe to a service
+      description: |
+        Subscribes the authenticated partner to a catalog service. Send
+        `serviceId` in the JSON body — it is also accepted as a query
+        parameter, but the body is the contract to build against. `serviceId`
+        is the numeric `id` from **List available services**. There is no
+        catalog lookup: any positive integer is accepted, and a duplicate
+        active subscription returns `409 ALREADY_SUBSCRIBED`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [serviceId]
+              properties:
+                serviceId: { type: integer, minimum: 1, description: The `id` from **List available services**. }
+            example: { serviceId: 2 }
+      responses:
+        "200":
+          description: Subscribed
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Subscribed successfully."
+                data: { id: "15", company_id: "28", service_id: "2", status: true, created_at: "2026-09-23T11:00:00.000000Z", updated_at: "2026-09-23T11:00:00.000000Z" }
+        "409": { description: "`ALREADY_SUBSCRIBED`" }
+        "422": { description: "`VALIDATION_FAILED` — `serviceId` missing or not a positive integer" }
+
+  /services/bills-payment/name-enquiry:
+    post:
+      tags: [Bills Payment]
+      summary: Resolve a customer name
+      description: |
+        Resolves the customer name on an electricity meter or cable smartcard
+        before you take payment. Electricity purchases fail with
+        `422 NAME_ENQUIRY_REQUIRED` until this has succeeded for the same
+        meter number and `service_type`. Cable TV does not enforce it, but
+        you should still run it when the provider requires a validated customer.
+        Requires a Bills Payment subscription.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_number, service_type, type]
+              properties:
+                account_number: { type: string, minLength: 5, maxLength: 50, description: Meter number or smartcard number. }
+                service_type: { type: string, maxLength: 150, description: Provider or disco code, for example `IKEDC` or `DSTV`. }
+                type: { type: string, enum: [electricity, cable, jamb, waec, betting] }
+            example: { account_number: "1234567890", service_type: IKEDC, type: electricity }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example: { status: success, message: "Name lookup completed successfully.", data: { resolved_name: "CUSTOMER NAME" } }
+        "403": { description: "`NOT_SUBSCRIBED`" }
+        "422": { description: "`NAME_LOOKUP_FAILED` — details did not resolve; provider payload may be in `data`. Or `VALIDATION_FAILED`." }
+
+  /services/bills-payment/airtime:
+    post:
+      tags: [Bills Payment]
+      summary: Buy airtime
+      description: |
+        Debits the partner Master account and buys airtime for an end
+        customer. Requires an `Idempotency-Key` header and a Bills Payment
+        subscription.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, amount, network]
+              properties:
+                phone: { type: string, pattern: "^0\\d{10}$", description: Nigerian format — `0` followed by 10 digits. }
+                amount: { type: number, minimum: 50, maximum: 500000 }
+                network: { type: string, enum: [mtn, glo, airtel, 9mobile] }
+                customer_reference: { type: string, maxLength: 100, nullable: true }
+            example: { phone: "08012345678", amount: 1000, network: mtn, customer_reference: customer-123 }
+      responses:
+        "200":
+          description: Purchased
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Airtime purchased successfully."
+                data:
+                  id: "101"
+                  company_id: "28"
+                  master_savings_id: "55"
+                  bill_type: airtime
+                  direction: debit
+                  amount: "1000.00"
+                  fee_amount: "0.00"
+                  balance_after: "49000.00"
+                  reference: PROVIDER-REFERENCE
+                  status: successful
+                  narration: "BaaS bills-payment: airtime for 08012345678 (MTN)"
+                  savings_transaction_id: "9001"
+                  meta: {}
+        "400": { description: "`INSUFFICIENT_BALANCE`, or a missing `Idempotency-Key` (no `error_code`)" }
+        "403": { description: "`NOT_SUBSCRIBED`" }
+        "404": { description: "`PROVIDER_UNAVAILABLE`" }
+        "409": { description: "`MASTER_NOT_PROVISIONED`, `DUPLICATE_REFERENCE`, or the same idempotency key is still processing" }
+        "422": { description: "`DAILY_CAP_EXCEEDED`, `VALIDATION_FAILED`, or the idempotency key was already used with a different body" }
+
+  /services/bills-payment/data:
+    post:
+      tags: [Bills Payment]
+      summary: Buy a data plan
+      description: |
+        Debits the partner Master account and buys a data plan. `amount` must
+        match the selected plan (`tariffTypeId`). Requires an `Idempotency-Key`
+        header.
+
+        If the selected provider is down but an alternative is available, the
+        API returns **HTTP 409 with `status: success`** and a `plans` list —
+        not an error envelope. Show those plans and retry with a **new**
+        idempotency key, because the body will have changed.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, amount, network, tariffTypeId]
+              properties:
+                phone: { type: string, pattern: "^0\\d{10}$" }
+                amount: { type: number, minimum: 50, maximum: 500000, description: Must match the selected plan. }
+                network: { type: string, maxLength: 15, description: "`mtn`, `glo`, `airtel`, or `9mobile`." }
+                tariffTypeId: { type: string, description: Plan identifier from **Get data plans**. }
+                force_provider: { type: string, nullable: true, description: Force a specific provider key. }
+                email: { type: string, format: email, nullable: true }
+                customer_reference: { type: string, maxLength: 100, nullable: true }
+            example: { phone: "08012345678", amount: 1500, network: mtn, tariffTypeId: MTN_DATA_2GB, email: customer@example.com, customer_reference: customer-123 }
+      responses:
+        "200":
+          description: "Purchased. `data` is a bills transaction with `bill_type: data`."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/BillsTransaction" }
+        "400": { description: "`INSUFFICIENT_BALANCE`, or a missing `Idempotency-Key`" }
+        "403": { description: "`NOT_SUBSCRIBED`" }
+        "409":
+          description: |
+            Either a conflict (`MASTER_NOT_PROVISIONED`, `DUPLICATE_REFERENCE`,
+            idempotency still processing) **or** a provider fallback. The
+            fallback is `status: success` with `failed_provider`,
+            `next_provider`, and `plans` — retry that selection with a new
+            idempotency key.
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Your selected provider is temporarily unavailable. Please choose a plan from the alternative provider."
+                data: { failed_provider: provider-a, next_provider: provider-b, plans: [] }
+        "422": { description: "`INVALID_PLAN_AMOUNT`, `DAILY_CAP_EXCEEDED`, or `VALIDATION_FAILED`" }
+
+  /services/bills-payment/electricity:
+    post:
+      tags: [Bills Payment]
+      summary: Buy electricity
+      description: |
+        Debits the partner Master account and pays an electricity meter.
+        Run **Resolve a customer name** first for the same `meter_number` and
+        `service_type`, or this returns `422 NAME_ENQUIRY_REQUIRED`. Requires
+        an `Idempotency-Key` header.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [meter_number, service_type, amount, phone]
+              properties:
+                meter_number: { type: string, minLength: 9, maxLength: 15 }
+                service_type: { type: string, maxLength: 150, description: Disco code. Must match the name enquiry. }
+                amount: { type: number, minimum: 100, maximum: 1000000 }
+                phone: { type: string, pattern: "^0\\d{10}$" }
+                customer_reference: { type: string, maxLength: 100, nullable: true }
+            example: { meter_number: "12345678901", service_type: IKEDC, amount: 5000, phone: "08012345678", customer_reference: customer-123 }
+      responses:
+        "200":
+          description: "Purchased. `data` is a bills transaction with `bill_type: electricity`."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/BillsTransaction" }
+        "400": { description: "`INSUFFICIENT_BALANCE`, or a missing `Idempotency-Key`" }
+        "403": { description: "`NOT_SUBSCRIBED`" }
+        "404": { description: "`PROVIDER_UNAVAILABLE`" }
+        "409": { description: "`MASTER_NOT_PROVISIONED` or `DUPLICATE_REFERENCE`" }
+        "422": { description: "`NAME_ENQUIRY_REQUIRED`, `DAILY_CAP_EXCEEDED`, or `VALIDATION_FAILED`" }
+
+  /services/bills-payment/cable-tv:
+    post:
+      tags: [Bills Payment]
+      summary: Buy a cable TV subscription
+      description: |
+        Debits the partner Master account and pays a cable TV bouquet.
+        `amount` must match the selected bouquet. `service_type` is
+        case-insensitive. Requires an `Idempotency-Key` header. Name enquiry
+        is recommended, but unlike electricity it is not enforced.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [smartcard_number, service_type, amount, phone, tariffTypeId]
+              properties:
+                smartcard_number: { type: string, minLength: 5, maxLength: 50 }
+                service_type: { type: string, enum: [DSTV, GOTV, STARTIMES, dstv, gotv, startimes] }
+                amount: { type: number, minimum: 100, maximum: 1000000, description: Must match the selected bouquet. }
+                phone: { type: string, pattern: "^0\\d{10}$" }
+                tariffTypeId: { type: string, description: Bouquet identifier from **List TV bouquets**. }
+                email: { type: string, format: email, nullable: true }
+                customer_reference: { type: string, maxLength: 100, nullable: true }
+            example: { smartcard_number: "1234567890", service_type: DSTV, amount: 10500, phone: "08012345678", tariffTypeId: DSTV_COMPACT, email: customer@example.com, customer_reference: customer-123 }
+      responses:
+        "200":
+          description: "Purchased. `data` is a bills transaction with `bill_type: cable`."
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/BillsTransaction" }
+        "400": { description: "`INSUFFICIENT_BALANCE`, or a missing `Idempotency-Key`" }
+        "403": { description: "`NOT_SUBSCRIBED`" }
+        "404": { description: "`PROVIDER_UNAVAILABLE`" }
+        "409": { description: "`MASTER_NOT_PROVISIONED` or `DUPLICATE_REFERENCE`" }
+        "422": { description: "`INVALID_PLAN_AMOUNT`, `DAILY_CAP_EXCEEDED`, or `VALIDATION_FAILED`" }
+
+  /services/bills-payment/get-data-plans:
+    post:
+      tags: [Bills Payment]
+      summary: Get data plans
+      description: |
+        Plans for one network. Preserve the full plan object when the user
+        selects one — `tariffTypeId` and `amount` on **Buy a data plan** must
+        match it. The provider may return extra fields beyond the example.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [network]
+              properties:
+                network: { type: string, enum: [mtn, glo, airtel, 9mobile] }
+            example: { network: mtn }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data: [{ tariffTypeId: MTN_DATA_2GB, name: "2GB Data", amount: 1500 }]
+
+  /services/bills-payment/providers:
+    get:
+      tags: [Bills Payment]
+      summary: List airtime and data providers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Airtime providers retrieved successfully"
+                data:
+                  - { name: MTN, code: mtn }
+                  - { name: Glo, code: glo }
+                  - { name: Airtel, code: airtel }
+                  - { name: 9mobile, code: 9mobile }
+
+  /services/bills-payment/cable-providers:
+    get:
+      tags: [Bills Payment]
+      summary: List cable TV providers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example:
+                status: success
+                message: "Cable providers retrieved successfully"
+                data:
+                  - { name: DStv, code: DSTV }
+                  - { name: GOtv, code: GOTV }
+                  - { name: StarTimes, code: STARTIMES }
+
+  /services/bills-payment/electricity-plans:
+    get:
+      tags: [Bills Payment]
+      summary: List electricity plans
+      description: |
+        Provider-controlled. `data` may include disco, service-type, and plan
+        metadata — treat the array as opaque beyond what you need to display
+        and to pass back as `service_type`.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example: { status: success, message: Success, data: [] }
+
+  /services/bills-payment/tv-bouquets:
+    get:
+      tags: [Bills Payment]
+      summary: List TV bouquets
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          schema: { type: string, enum: [DSTV, GOTV, STARTIMES, dstv, gotv, startimes] }
+          description: Case-insensitive.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data: [{ provider: DSTV, tariffTypeId: DSTV_COMPACT, name: Compact, amount: 10500 }]
+        "422": { description: "`VALIDATION_FAILED` — `provider` missing or not a known cable provider" }
+
+  /services/bills-payment/transactions/status:
+    get:
+      tags: [Bills Payment]
+      summary: Get a bills transaction
+      description: |
+        Looks up a bills-payment debit by the provider `reference` returned
+        on purchase. A reference that belongs to another partner, or that
+        does not exist, is `404 TRANSACTION_NOT_FOUND`. On
+        `DUPLICATE_REFERENCE`, call this instead of purchasing again.
+      parameters:
+        - name: reference
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: The bills transaction, same shape as a purchase response.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessEnvelope"
+                  - type: object
+                    properties:
+                      data: { $ref: "#/components/schemas/BillsTransaction" }
+        "404": { description: "`TRANSACTION_NOT_FOUND`" }
+        "422": { description: "`VALIDATION_FAILED` — `reference` missing" }
 
   /services/partner/webhook:
     post:

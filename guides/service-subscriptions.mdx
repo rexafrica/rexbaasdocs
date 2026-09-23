@@ -1,0 +1,30 @@
+---
+title: Service subscriptions
+description: Subscribe to optional products such as Bills Payment
+---
+
+Some products are gated behind a subscription. [List available services](/api-reference/services/list-available-services)
+returns the catalog, with `is_subscribed` for the authenticated partner.
+
+Virtual accounts are not in this list. They are available as soon as the
+partner account is provisioned — see [Virtual Accounts](/guides/virtual-vs-merchant-accounts).
+Bills Payment is. A bills call before you subscribe returns `403 NOT_SUBSCRIBED`.
+
+## Subscribe
+
+Send the numeric `id` from the list to
+[Subscribe to a service](/api-reference/services/subscribe-to-a-service):
+
+```json
+{ "serviceId": 2 }
+```
+
+Put `serviceId` in the JSON body. The API also accepts it as a query
+parameter, but the body is what you should send.
+
+A second subscribe for the same service returns `409 ALREADY_SUBSCRIBED`.
+After a successful subscribe, refresh the list — `is_subscribed` flips to
+`true`. There is no unsubscribe endpoint.
+
+Both calls use the same bearer token as other service endpoints. See
+[Authentication](/authentication).

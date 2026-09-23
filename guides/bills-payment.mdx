@@ -1,0 +1,73 @@
+---
+title: Bills Payment
+description: Buy airtime, data, electricity, and cable TV against your Master account
+---
+
+Bills payment lets you buy airtime, data, electricity, and cable TV for your
+end customers. Every purchase debits **your** Master account — not a virtual
+account. You must be [subscribed to Bills Payment](/guides/service-subscriptions)
+and have a provisioned Master account before any of these calls succeed.
+
+All paths are under the [base URL](/introduction).
+
+## Before you charge
+
+1. [List providers](/api-reference/bills-payment/list-airtime-and-data-providers),
+   [data plans](/api-reference/bills-payment/get-data-plans),
+   [electricity plans](/api-reference/bills-payment/list-electricity-plans),
+   or [TV bouquets](/api-reference/bills-payment/list-tv-bouquets) when the
+   screen opens. Keep the full plan object — `amount` on the purchase must
+   match the plan the customer selected.
+2. For electricity, [resolve the customer name](/api-reference/bills-payment/resolve-a-customer-name)
+   first, with the same meter number and `service_type` you will pay.
+   Skipping it returns `422 NAME_ENQUIRY_REQUIRED`. Cable TV does not enforce
+   this, but run it when the provider expects a validated smartcard.
+3. Generate one `Idempotency-Key` per payment attempt and store it with the
+   attempt. Send it on [airtime](/api-reference/bills-payment/buy-airtime),
+   [data](/api-reference/bills-payment/buy-a-data-plan),
+   [electricity](/api-reference/bills-payment/buy-electricity), and
+   [cable TV](/api-reference/bills-payment/buy-a-cable-tv-subscription).
+
+## Idempotency
+
+Purchase endpoints reject a request that has no `Idempotency-Key` (`400`,
+no `error_code`).
+
+- Reuse the **same** key when a request times out and you are retrying the
+  same body. A completed key replays the original response. A key still in
+  flight returns `409` — wait and retry that same key, don't start a second
+  purchase.
+- Use a **new** key when the body changes. The same key with a different
+  payload is rejected.
+- A failed purchase (insufficient balance, validation, daily cap) does not
+  lock the key, so you can retry that key once the problem is fixed.
+- Keys expire after 24 hours.
+
+On `409 DUPLICATE_REFERENCE`, don't purchase again. Call
+[Get a bills transaction](/api-reference/bills-payment/get-a-bills-transaction)
+with the reference you already have.
+
+## Data provider fallback
+
+[Buy a data plan](/api-reference/bills-payment/buy-a-data-plan) can return
+**HTTP 409 with `status: success`** when the selected provider is down and
+an alternative has plans. That is not the error envelope. Show `data.plans`
+and submit the customer's new choice with a new idempotency key.
+
+## Errors
+
+| `error_code` | Status | What to do |
+|---|---|---|
+| `NOT_SUBSCRIBED` | 403 | [Subscribe](/api-reference/services/subscribe-to-a-service) to Bills Payment. |
+| `MASTER_NOT_PROVISIONED` | 409 | Master account isn't ready yet. Retry after provisioning. |
+| `DAILY_CAP_EXCEEDED` | 422 | Stop retrying. The partner daily bills limit was hit. |
+| `INSUFFICIENT_BALANCE` | 400 | Fund the Master account. |
+| `NAME_ENQUIRY_REQUIRED` | 422 | Run name enquiry, then pay. Electricity only. |
+| `NAME_LOOKUP_FAILED` | 422 | Meter or smartcard details did not resolve. |
+| `INVALID_PLAN_AMOUNT` | 422 | Refresh plans and resend an amount that matches the selected plan. |
+| `PROVIDER_UNAVAILABLE` | 404 | Retry later, or pick the alternative provider on a data purchase. |
+| `DUPLICATE_REFERENCE` | 409 | Look up the existing transaction. Don't create another. |
+| `TRANSACTION_NOT_FOUND` | 404 | The reference isn't yours, or it doesn't exist. |
+
+Phone numbers are Nigerian format: `0` followed by 10 digits. Airtime and
+data amounts are 50–500,000. Electricity and cable amounts are 100–1,000,000.
