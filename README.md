@@ -11,10 +11,10 @@ Never documents `routes/api.php` (the internal mobile app) or the
 ## Structure
 
 ```
-openapi.yaml           # source of truth for the API Reference tab — 54 operations, 8 tags
+openapi.yaml           # source of truth for the API Reference tab
 docs.json              # Mintlify navigation + theme config
 introduction.mdx
-authentication.mdx     # ⚠️ documents a real auth gap — read before publishing, see below
+authentication.mdx
 errors.mdx
 rate-limits.mdx
 webhooks/
@@ -25,6 +25,8 @@ guides/
   going-live-checklist.mdx
   sandbox-vs-live.mdx
   virtual-vs-merchant-accounts.mdx
+  service-subscriptions.mdx
+  bills-payment.mdx
 ```
 
 ## Branding
@@ -71,22 +73,16 @@ workflow:
 Two things this documentation surfaces that are worth resolving in
 `rexmobileapp` first, not just documenting around:
 
-1. **API keys aren't wired to anything.**
-   `POST /client/onboarding/apikeys` issues a real-looking
-   `sk_live_*`/`sk_sandbox_*` secret, but no middleware or guard anywhere in
-   the app actually checks it — every endpoint, including every service
-   call, only accepts the JWT bearer token from `POST client/onboarding/login`.
-   `docs/authentication.mdx` documents this honestly with a callout rather
-   than describing the key as a working credential, but a partner reading
-   it will reasonably ask "why do you hand me a secret key that does
-   nothing?" — worth fixing (wire the key into `BaasPartnerAuth`) or
-   pulling the endpoint before this goes external.
-2. **No refresh token, and a 2-hour session (`JWT_TTL`).** A
-   server-to-server integration has no clean way to stay authenticated
-   indefinitely without storing your partner's login password to
-   auto-relogin. Documented in `docs/authentication.mdx`, but this is the
-   kind of thing that usually becomes a support-ticket generator once
-   partners actually build against it.
+1. **API keys only work on service routes.**
+   `baas.service.auth` accepts an `sk_*` key (virtual accounts, bills
+   payment, service subscriptions). Onboarding, wallet, webhooks, and
+   partner settings still use `baas.partner.auth` and reject that key.
+   Documented in `authentication.mdx`.
+2. **No refresh token, and a 2-hour session (`JWT_TTL`).** Service calls
+   can use an API key instead. Onboarding, wallet, webhooks, and partner
+   settings still need a login JWT, so an unattended integration against
+   those routes has to store the partner password and re-login. Documented
+   in `authentication.mdx`.
 
 Everything else checked out as accurate and fully implemented while
 writing this — in particular, webhook HMAC signing

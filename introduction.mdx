@@ -13,6 +13,10 @@ banking app, exposed to approved partners.
 - **Wallets for your users** — issue each of them a dedicated Rex account
   number ([Virtual Accounts](/api-reference/virtual-accounts/create-a-virtual-account)),
   fund it, move money between accounts, and send to other banks.
+- **Bills for your users** — buy airtime, data, electricity, and cable TV
+  against your own Master account
+  ([Bills Payment](/guides/bills-payment)). Subscribe first — see
+  [Service subscriptions](/guides/service-subscriptions).
 - **Real-time notifications** — subscribe a webhook to be notified the
   moment money moves, signed so you can verify it really came from Rex
   ([Webhooks](/webhooks/overview)).
@@ -49,12 +53,11 @@ banking app, exposed to approved partners.
   </Step>
 </Steps>
 
-## Base URLs
+## Base URL
 
-| Environment | Base URL |
-|---|---|
-| Live | `https://api.rexmfbank.com/baas/api/v1` |
-| Sandbox | `https://sandbox-api.rexmfbank.com/baas/api/v1` |
+```
+https://api.rexmfbank.com/baas/api/v1
+```
 
 ## Where to go next
 
@@ -62,3 +65,4 @@ banking app, exposed to approved partners.
   reading before you build against this.
 - [Errors](/errors) — the one response shape every endpoint shares.
 - [Webhooks Overview](/webhooks/overview) — get notified instead of polling.
+- [Bills Payment](/guides/bills-payment) — airtime, data, electricity, and cable TV.

@@ -35,7 +35,9 @@
             "group": "Guides",
             "pages": [
               "guides/going-live-checklist",
-              "guides/sandbox-vs-live"
+              "guides/sandbox-vs-live",
+              "guides/service-subscriptions",
+              "guides/bills-payment"
             ]
           }
         ]

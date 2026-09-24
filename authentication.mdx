@@ -33,14 +33,16 @@ curl -X POST https://api.rexmfbank.com/baas/api/v1/client/onboarding/login \
 }
 ```
 
-Use `data.token` as the bearer credential on every subsequent call — the
-onboarding endpoints (business info, representative, documents…) **and**
-the service-call endpoints (virtual accounts and transfers) all check the
-exact same token.
+Use `data.token` as the bearer credential on onboarding, wallet, webhook,
+and partner-settings calls. Service endpoints — virtual accounts, transfers,
+[bills payment](/guides/bills-payment), and
+[subscriptions](/guides/service-subscriptions) — accept this token **or**
+an API key. See below.
 
 <Warning>
-  **This token currently gates everything — the API key described below
-  does not.** Read on before you build anything long-running against this.
+  This login token expires. For a long-running service integration, prefer
+  an API key on the service endpoints rather than re-logging in. Onboarding
+  and settings still require this token.
 </Warning>
 
 ## Token lifetime — read this before you integrate
@@ -51,8 +53,9 @@ is no refresh-token endpoint. When a token expires, requests fail with
 [Login](/api-reference/authentication/log-in) again with your email and password.
 
 For a quick dashboard session this is normal. For a **server-to-server
-integration that needs to keep working unattended**, it means your backend
-needs one of:
+integration that only calls service endpoints**, use an API key instead —
+it does not expire on this 2-hour clock. If you are calling onboarding,
+wallet, webhooks, or partner settings unattended, your backend needs one of:
 
 - a small wrapper that catches `401`s and transparently re-authenticates
   with a stored email/password before retrying, or
@@ -63,20 +66,20 @@ your service needs to hold your login password in a place your own backend
 can read it. We're calling this out explicitly rather than letting you
 discover it the first time a long-running job 401s at 2am.
 
-## About the API key endpoint
+## API keys
 
-[Issue an API Key](/api-reference/authentication/issue-an-api-key) exists and
-returns a real-looking `sk_live_...` / `sk_sandbox_...` secret. **As of this
-writing, no endpoint actually checks this key for anything** — every
-endpoint, including the ones you'd expect a static key to protect, only
-accepts the login-issued bearer token above. Don't build an integration
-that authenticates with this key; it won't work in production today.
+[Issue an API Key](/api-reference/authentication/issue-an-api-key) returns an
+`sk_live_...` / `sk_sandbox_...` secret. Service endpoints accept either the
+login JWT or this key — virtual accounts, [bills payment](/guides/bills-payment),
+and [service subscriptions](/guides/service-subscriptions):
 
-If you're seeing this and are a Rex-side reader: this is the one thing in
-this whole reference worth resolving before onboarding an external partner —
-either wire the key into the `baas.partner.auth` guard as a real
-alternative credential, or pull the endpoint until it's ready. Shipping a
-secret key that silently does nothing is worse than not offering one.
+```
+Authorization: Bearer sk_live_...
+```
+
+Onboarding, the wallet endpoints, webhooks, and partner settings still only
+accept the login JWT. A key sent to those routes is rejected. The key is
+scoped to the environment it was issued for.
 
 ## Sandbox vs. live tokens
 
