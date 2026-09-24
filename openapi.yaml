@@ -25,7 +25,7 @@ info:
     name: Proprietary — for approved Rex BaaS partners only
 
 servers:
-  - url: https://rexcore-api.rexafrica.com/baas/api/v1
+  - url: https://api.rexmfbank.com/baas/api/v1
     description: Rex BaaS API
 
 security:
