@@ -191,7 +191,7 @@ components:
       properties:
         reference:
           type: string
-          example: "TXN-20260101-0001"
+          example: "Ref-1758751200-9KQ2TVX4"
         account_number:
           type: string
         amount:
@@ -224,7 +224,7 @@ components:
         amount: { type: string, example: "1000.00" }
         fee_amount: { type: string, example: "0.00" }
         balance_after: { type: string, example: "49000.00" }
-        reference: { type: string, example: PROVIDER-REFERENCE }
+        reference: { type: string, example: "Ref-1758751500-3HQ8K2MD" }
         status: { type: string, example: successful }
         narration: { type: string }
         savings_transaction_id: { type: string, example: "9001" }
@@ -727,7 +727,13 @@ paths:
     post:
       tags: [Virtual Accounts]
       summary: Create a virtual account
-      description: Issues a dedicated bank account number for one of your end users.
+      description: |
+        Issues a dedicated bank account number for one of your end users.
+
+        `custom` chooses which account-number sequence is minted: `true` uses
+        the partner's own configured company range (the `account_number_range`
+        on the partner record), `false` (default) uses the normal BaaS
+        account sequence for the current environment.
       requestBody:
         required: true
         content:
@@ -740,6 +746,15 @@ paths:
                 last_name: { type: string, maxLength: 100 }
                 email: { type: string, format: email, nullable: true }
                 phone: { type: string, nullable: true }
+                custom:
+                  type: boolean
+                  nullable: true
+                  default: false
+                  description: |
+                    Optional. `true` mints the account number from the
+                    partner's company account-number range; `false` or
+                    omitted uses the normal BaaS account sequence.
+            example: { first_name: Micheal, last_name: Fadiya, email: "fadiaymicheal@example.com", phone: "07063799801", custom: false }
       responses:
         "200":
           description: OK
@@ -856,7 +871,7 @@ paths:
                 beneficiaryAccountNo: { type: string }
                 amount: { type: number, format: float, minimum: 0.01 }
                 narration: { type: string, maxLength: 100 }
-                reference: { type: string, maxLength: 191, description: "Your own idempotency key for this transfer." }
+                reference: { type: string, maxLength: 191, description: "Your own idempotency key for this transfer. Use the format `Ref-<timestamp>-<8 random characters>` (e.g. `Ref-1758751200-9KQ2TVX4`)." }
                 geolocation: { type: string, nullable: true }
                 charge: { type: number, nullable: true }
                 stampDuty: { type: number, nullable: true }
@@ -866,7 +881,7 @@ paths:
           description: OK
           content:
             application/json:
-              example: { status: success, message: "Internal transfer SUCCESSFUL.", data: { reference: "REF-001", transactionStatus: SUCCESSFUL } }
+              example: { status: success, message: "Internal transfer SUCCESSFUL.", data: { reference: "Ref-1758751200-9KQ2TVX4", transactionStatus: SUCCESSFUL } }
         "400": { description: "`INSUFFICIENT_BALANCE` or `REGULAR_ACCOUNT_NOT_SUPPORTED_IN_SANDBOX`" }
         "404": { description: "`SOURCE_ACCOUNT_NOT_FOUND` or `BENEFICIARY_ACCOUNT_NOT_FOUND`" }
         "409": { description: "`DUPLICATE_REFERENCE`, `FBO_NOT_PROVISIONED`, or `DESTINATION_FBO_NOT_PROVISIONED`" }
@@ -891,7 +906,7 @@ paths:
                 beneficiaryName: { type: string, maxLength: 100 }
                 amount: { type: number, format: float, minimum: 0.01 }
                 narration: { type: string, maxLength: 100 }
-                reference: { type: string, maxLength: 191 }
+                reference: { type: string, maxLength: 191, description: "Use the format `Ref-<timestamp>-<8 random characters>` (e.g. `Ref-1758751300-M7RN4C2Z`)." }
                 geolocation: { type: string, nullable: true }
                 charge: { type: number, nullable: true }
                 stampDuty: { type: number, nullable: true }
@@ -901,7 +916,7 @@ paths:
           description: OK
           content:
             application/json:
-              example: { status: success, message: "Interbank transfer SUCCESSFUL.", data: { reference: "REF-002", transactionStatus: SUCCESSFUL } }
+              example: { status: success, message: "Interbank transfer SUCCESSFUL.", data: { reference: "Ref-1758751300-M7RN4C2Z", transactionStatus: SUCCESSFUL } }
         "400": { description: "`INSUFFICIENT_BALANCE`, or `TRANSFER_FAILED` with the provider's own reason" }
         "404": { description: "`SOURCE_ACCOUNT_NOT_FOUND`" }
         "409": { description: "`DUPLICATE_REFERENCE` or `FBO_NOT_PROVISIONED`" }
@@ -950,8 +965,7 @@ paths:
                 accountNumber: { type: string }
                 amount: { type: number, format: float, minimum: 0.01 }
                 transactionType: { type: string, enum: [CREDIT, DEBIT] }
-                reference: { type: string, maxLength: 191 }
-                narration: { type: string, nullable: true, maxLength: 255 }
+                reference: { type: string, maxLength: 191, description: "Use the format `Ref-<timestamp>-<8 random characters>` (e.g. `Ref-1758751400-5BWK2D7P`)." }
       responses:
         "200": { description: Posted }
         "400": { description: "`INSUFFICIENT_BALANCE` or `INSUFFICIENT_MASTER_BALANCE`" }
@@ -1117,7 +1131,7 @@ paths:
                   amount: "1000.00"
                   fee_amount: "0.00"
                   balance_after: "49000.00"
-                  reference: PROVIDER-REFERENCE
+                  reference: "Ref-1758751500-3HQ8K2MD"
                   status: successful
                   narration: "BaaS bills-payment: airtime for 08012345678 (MTN)"
                   savings_transaction_id: "9001"
