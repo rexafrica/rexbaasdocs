@@ -1112,8 +1112,8 @@ paths:
                 phone: { type: string, pattern: "^0\\d{10}$", description: Nigerian format — `0` followed by 10 digits. }
                 amount: { type: number, minimum: 50, maximum: 500000 }
                 network: { type: string, enum: [mtn, glo, airtel, 9mobile] }
-                customer_reference: { type: string, maxLength: 100, nullable: true }
-            example: { phone: "08012345678", amount: 1000, network: mtn, customer_reference: customer-123 }
+                reference: { type: string, maxLength: 100, nullable: true, description: "Your own reference for this purchase. Use the format `Ref-<timestamp>-<8 random characters>`." }
+            example: { phone: "08012345678", amount: 1000, network: mtn, reference: "Ref-1790337900-Pq8wNc2V" }
       responses:
         "200":
           description: Purchased
@@ -1171,8 +1171,8 @@ paths:
                 tariffTypeId: { type: string, description: Plan identifier from **Get data plans**. }
                 force_provider: { type: string, nullable: true, description: Force a specific provider key. }
                 email: { type: string, format: email, nullable: true }
-                customer_reference: { type: string, maxLength: 100, nullable: true }
-            example: { phone: "08012345678", amount: 1500, network: mtn, tariffTypeId: MTN_DATA_2GB, email: customer@example.com, customer_reference: customer-123 }
+                reference: { type: string, maxLength: 100, nullable: true, description: "Your own reference for this purchase. Use the format `Ref-<timestamp>-<8 random characters>`." }
+            example: { phone: "08012345678", amount: 100, network: mtn, tariffTypeId: "MTN-110MB-11", email: customer@example.com, reference: "Ref-1790338000-Rt5vJy9U" }
       responses:
         "200":
           description: "Purchased. `data` is a bills transaction with `bill_type: data`."
@@ -1224,8 +1224,8 @@ paths:
                 service_type: { type: string, maxLength: 150, description: Disco code. Must match the name enquiry. }
                 amount: { type: number, minimum: 100, maximum: 1000000 }
                 phone: { type: string, pattern: "^0\\d{10}$" }
-                customer_reference: { type: string, maxLength: 100, nullable: true }
-            example: { meter_number: "12345678901", service_type: IKEDC, amount: 5000, phone: "08012345678", customer_reference: customer-123 }
+                reference: { type: string, maxLength: 100, nullable: true, description: "Your own reference for this purchase. Use the format `Ref-<timestamp>-<8 random characters>`." }
+            example: { meter_number: "12345678901", service_type: IKEDC, amount: 5000, phone: "08012345678", reference: "Ref-1790338100-Wf2xLq7M" }
       responses:
         "200":
           description: "Purchased. `data` is a bills transaction with `bill_type: electricity`."
@@ -1268,8 +1268,8 @@ paths:
                 phone: { type: string, pattern: "^0\\d{10}$" }
                 tariffTypeId: { type: string, description: Bouquet identifier from **List TV bouquets**. }
                 email: { type: string, format: email, nullable: true }
-                customer_reference: { type: string, maxLength: 100, nullable: true }
-            example: { smartcard_number: "1234567890", service_type: DSTV, amount: 10500, phone: "08012345678", tariffTypeId: DSTV_COMPACT, email: customer@example.com, customer_reference: customer-123 }
+                reference: { type: string, maxLength: 100, nullable: true, description: "Your own reference for this purchase. Use the format `Ref-<timestamp>-<8 random characters>`." }
+            example: { smartcard_number: "1234567890", service_type: DSTV, amount: 4400, phone: "08012345678", tariffTypeId: "1480", email: customer@example.com, reference: "Ref-1790338200-Zd8sHn3K" }
       responses:
         "200":
           description: "Purchased. `data` is a bills transaction with `bill_type: cable`."
@@ -1315,10 +1315,10 @@ paths:
                 message: Success
                 data: [{ tariffTypeId: MTN_DATA_2GB, name: "2GB Data", amount: 1500 }]
 
-  /services/bills-payment/providers:
+  /services/bills-payment/airtime-providers:
     get:
       tags: [Bills Payment]
-      summary: List airtime and data providers
+      summary: List airtime providers
       responses:
         "200":
           description: OK
@@ -1399,7 +1399,7 @@ paths:
         - name: reference
           in: query
           required: true
-          schema: { type: string }
+          schema: { type: string, example: "Ref-1790337900-Pq8wNc2V" }
       responses:
         "200":
           description: The bills transaction, same shape as a purchase response.
